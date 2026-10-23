@@ -44,7 +44,7 @@ async function request<T>(method: string, url: string, body?: unknown, init?: Re
   }
   if (!res.ok) {
     const err = data?.error;
-    throw new ApiError(err?.message || t("common.error"), err?.code || "http", res.status);
+    throw new ApiError(err?.message || `${t("common.error")} (${res.status})`, err?.code || "http", res.status);
   }
   return data as T;
 }

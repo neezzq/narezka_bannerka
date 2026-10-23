@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Minus, Plus } from "lucide-react";
 import { useId, useRef, type ReactNode } from "react";
+import { t } from "@/i18n";
 
 // ------------------------------------------------------------------ SegmentedControl
 
@@ -215,7 +216,7 @@ export function Stepper({
       <div className="flex h-8 items-center rounded-lg bg-fill-2">
         <button
           type="button"
-          aria-label={`${label}: меньше`}
+          aria-label={t("a11y.less", { label })}
           disabled={value <= min}
           onClick={() => set(value - step)}
           className="relative flex h-8 w-11 items-center justify-center disabled:opacity-30 before:absolute before:-inset-y-1.5 before:inset-x-0"
@@ -225,7 +226,7 @@ export function Stepper({
         <span className="h-4 w-px bg-separator" />
         <button
           type="button"
-          aria-label={`${label}: больше`}
+          aria-label={t("a11y.more", { label })}
           disabled={value >= max}
           onClick={() => set(value + step)}
           className="relative flex h-8 w-11 items-center justify-center disabled:opacity-30 before:absolute before:-inset-y-1.5 before:inset-x-0"

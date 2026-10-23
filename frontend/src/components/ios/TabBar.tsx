@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { t } from "@/i18n";
 
 export interface TabItem<K extends string> {
   key: K;
@@ -20,7 +21,7 @@ export function TabBar<K extends string>({
   className?: string;
 }) {
   return (
-    <nav className={`material hairline-t relative z-20 shrink-0 pb-safe ${className}`} aria-label="Инструменты">
+    <nav className={`material hairline-t relative z-20 shrink-0 pb-safe ${className}`} aria-label={t("a11y.tools")}>
       <div className="flex h-[var(--tab-h)] items-stretch" role="tablist">
         {items.map(({ key, label, icon: Icon, badge }) => {
           const selected = key === active;

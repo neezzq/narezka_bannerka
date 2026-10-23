@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { prefersReducedMotion, safeAreaInsets } from "@/lib/platform";
 import { IconButton } from "./Button";
+import { t } from "@/i18n";
 
 export type Detent = "medium" | "large";
 
@@ -89,7 +90,7 @@ function SheetHeader({
         <h2 className="truncate text-headline font-semibold">{title}</h2>
         <div className="flex items-center justify-self-end">
           {right ?? (
-            <IconButton label="Закрыть" tone="label" size={36} onClick={onClose} className="bg-fill-2 !text-label-2">
+            <IconButton label={t("a11y.close")} tone="label" size={36} onClick={onClose} className="bg-fill-2 !text-label-2">
               <X size={18} strokeWidth={2.5} />
             </IconButton>
           )}

@@ -1,5 +1,5 @@
 import { animate, motion, useMotionValue } from "framer-motion";
-import { ClipboardPaste, Clapperboard, Download, Link2, Settings, Trash2, Upload, X } from "lucide-react";
+import { ClipboardPaste, Clapperboard, Download, Link2, Settings, Trash2, Upload, WifiOff, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -45,6 +45,7 @@ export function HomeScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const config = useApp((s) => s.config);
+  const online = useApp((s) => s.online);
   const platform = detectPlatform(text);
 
   useEffect(() => {
@@ -52,11 +53,11 @@ export function HomeScreen() {
     api
       .listProjects()
       .then((r) => alive && setProjects(r.projects))
-      .catch(() => alive && setProjects([]));
+      .catch(() => alive && setProjects((p) => p ?? []));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [online]);
 
   const submit = async (value = text) => {
     const v = value.trim();
@@ -141,6 +142,15 @@ export function HomeScreen() {
       />
       <main className="scroll-y min-h-0 flex-1 pb-[calc(var(--safe-bottom)+24px)]">
         <div className="mx-auto w-full max-w-[560px]">
+          {!online && (
+            <div className="mx-4 mt-3 flex items-start gap-3 rounded-[var(--radius-card)] bg-warning/15 p-4" role="status">
+              <WifiOff size={22} className="mt-0.5 shrink-0 text-warning" />
+              <div>
+                <div className="text-headline">{t("app.offline")}</div>
+                <div className="text-footnote text-label-2">{t("app.offlineHint")}</div>
+              </div>
+            </div>
+          )}
           <section className="px-4 pt-3">
             <div className="rounded-[var(--radius-card)] bg-surface p-4">
               <p className="mb-3 text-subhead text-label-2">{t("home.subtitle")}</p>
@@ -176,7 +186,7 @@ export function HomeScreen() {
                   {text && (
                     <button
                       type="button"
-                      aria-label="Очистить"
+                      aria-label={t("a11y.clear")}
                       onClick={() => {
                         setText("");
                         setError(null);
@@ -284,7 +294,7 @@ export function HomeScreen() {
                       )}
                     </span>
                   }
-                  title={p.title || "Без названия"}
+                  title={p.title || t("home.untitled")}
                   subtitle={
                     <span className="flex items-center gap-1.5">
                       <PlatformIcon platform={p.platform} size={13} />
@@ -376,7 +386,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
             />
           </ListSection>
         )}
-        <p className="px-8 text-center text-caption-1 text-label-3">Bannerka 1.0 · {t("home.rights")}</p>
+        <p className="px-8 text-center text-caption-1 text-label-3">{t("home.version")} · {t("home.rights")}</p>
       </div>
     </Sheet>
   );

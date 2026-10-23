@@ -397,7 +397,7 @@ function Gestures({ W, H, s, getVideo }: { W: number; H: number; s: number; getV
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       role="application"
-      aria-label="Превью ролика"
+      aria-label={t("a11y.preview")}
     >
       {guides.v && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-accent/80" />}
       {guides.h && <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-accent/80" />}
@@ -413,10 +413,10 @@ function Gestures({ W, H, s, getVideo }: { W: number; H: number; s: number; getV
           }}
         >
           {(["-top-2.5 -left-2.5", "-top-2.5 -right-2.5", "-bottom-2.5 -left-2.5", "-bottom-2.5 -right-2.5"] as const).map((pos) => (
-            <span key={pos} data-handle="scale" className={`pointer-events-auto absolute size-5 rounded-full border-2 border-accent bg-white ${pos} before:absolute before:-inset-3`} aria-label="Масштаб" />
+            <span key={pos} data-handle="scale" className={`pointer-events-auto absolute size-5 rounded-full border-2 border-accent bg-white ${pos} before:absolute before:-inset-3`} aria-label={t("a11y.scale")} />
           ))}
           <span className="absolute -top-8 left-1/2 h-6 w-px bg-accent" />
-          <span data-handle="rotate" className="pointer-events-auto absolute -top-11 left-1/2 size-6 -translate-x-1/2 rounded-full border-2 border-accent bg-white before:absolute before:-inset-3" aria-label="Поворот" />
+          <span data-handle="rotate" className="pointer-events-auto absolute -top-11 left-1/2 size-6 -translate-x-1/2 rounded-full border-2 border-accent bg-white before:absolute before:-inset-3" aria-label={t("a11y.rotate")} />
         </div>
       )}
       {eyedropper && (

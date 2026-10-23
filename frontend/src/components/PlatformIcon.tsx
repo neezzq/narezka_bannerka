@@ -1,5 +1,6 @@
 import { FileVideo } from "lucide-react";
 import type { Platform } from "@/lib/types";
+import { t } from "@/i18n";
 
 /** Simple brand-coloured glyphs drawn from basic shapes (no third-party logos copied). */
 export function PlatformIcon({ platform, size = 22 }: { platform: Platform | null; size?: number }) {
@@ -26,5 +27,5 @@ export function PlatformIcon({ platform, size = 22 }: { platform: Platform | nul
         <path d="M13.2 5.5v9.2a2.6 2.6 0 1 1-2.6-2.6M13.2 5.5c.4 1.8 1.7 3 3.6 3.2" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
       </svg>
     );
-  return <FileVideo size={size} className="text-label-2" aria-label="Файл" />;
+  return <FileVideo size={size} className="text-label-2" aria-label={t("a11y.file")} />;
 }

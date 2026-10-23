@@ -1,10 +1,12 @@
+import { t } from "@/i18n";
+
 /** iOS-style spinner (12 fading bars). */
 export function ActivityIndicator({ size = 20, className = "", label }: { size?: number; className?: string; label?: string }) {
   const bars = Array.from({ length: 12 });
   return (
     <span
       role="progressbar"
-      aria-label={label ?? "Загрузка"}
+      aria-label={label ?? t("a11y.loading")}
       className={`inline-block text-label-2 ${className}`}
       style={{ width: size, height: size }}
     >

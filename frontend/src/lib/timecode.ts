@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 // Mirrors backend/app/services/timecode.py
 
 const TC = /^\s*(?:(\d+):)?(?:(\d+):)?(\d+(?:[.,]\d+)?)\s*$/;
@@ -8,7 +10,7 @@ export class TimecodeError extends Error {}
 export function parseTimecode(value: string): number {
   const text = (value ?? "").trim();
   const m = TC.exec(text);
-  if (!m) throw new TimecodeError(`Неверный таймкод «${text}». Используйте мм:сс или чч:мм:сс.`);
+  if (!m) throw new TimecodeError(t("timecode.invalid", { text }));
   const [, a, b, last] = m;
   const seconds = parseFloat(last.replace(",", "."));
   let hours = 0;
@@ -20,8 +22,8 @@ export function parseTimecode(value: string): number {
     minutes = parseInt(a, 10);
   }
   if (a !== undefined) {
-    if (seconds >= 60) throw new TimecodeError(`Секунд не может быть больше 59 в «${text}».`);
-    if (b !== undefined && minutes >= 60) throw new TimecodeError(`Минут не может быть больше 59 в «${text}».`);
+    if (seconds >= 60) throw new TimecodeError(t("timecode.seconds", { text }));
+    if (b !== undefined && minutes >= 60) throw new TimecodeError(t("timecode.minutes", { text }));
   }
   return hours * 3600 + minutes * 60 + seconds;
 }
@@ -35,7 +37,7 @@ export function parseRange(value: string): [number, number] | null {
   if (parts.length !== 2) return null;
   const start = parseTimecode(parts[0]);
   const end = parseTimecode(parts[1]);
-  if (end <= start) throw new TimecodeError("Конец отрезка должен быть позже начала.");
+  if (end <= start) throw new TimecodeError(t("timecode.order"));
   return [start, end];
 }
 
@@ -59,6 +61,6 @@ export function formatTimecode(seconds: number, fraction = false): string {
 
 /** Compact "12,4 с" / "1:05" style duration for badges */
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${(Math.round(seconds * 10) / 10).toString().replace(".", ",")} с`;
+  if (seconds < 60) return t("units.seconds", { n: (Math.round(seconds * 10) / 10).toString().replace(".", ",") });
   return formatTimecode(seconds);
 }

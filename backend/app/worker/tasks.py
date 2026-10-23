@@ -495,7 +495,11 @@ async def recover_stale_jobs() -> None:
 
 
 async def startup(ctx: dict) -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if not logging.getLogger("bannerka").handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        logging.getLogger("bannerka").addHandler(handler)
+        logging.getLogger("bannerka").setLevel(logging.INFO)
     await init_db()
     await recover_stale_jobs()
 

@@ -64,7 +64,7 @@ export const useTranscribe = create<TranscribeState>((set) => {
             d.subtitles.enabled = true;
           });
         }
-        toast({ title: t("subs.title"), message: `${j.result.words.length} слов распознано`, tone: "success" });
+        toast({ title: t("subs.title"), message: t("subs.recognized", { n: j.result.words.length }), tone: "success" });
       } else if (j.status === "error") {
         toast({ title: t("subs.title"), message: j.error ?? t("errors.jobFailed"), tone: "error" });
       }
@@ -139,11 +139,11 @@ function GenerateBlock({ compact }: { compact?: boolean }) {
       setBusy(false);
     }
   };
-  const langOptions = languages.length ? languages : [{ code: "auto", name: "Авто" }, { code: "ru", name: "Русский" }, { code: "en", name: "English" }];
+  const langOptions = languages.length ? languages : [{ code: "auto", name: t("subs.langAuto") }, { code: "ru", name: "Русский" }, { code: "en", name: "English" }];
   return (
     <div className={compact ? "px-4 py-3" : ""}>
       {!compact && (
-        <EmptyState className="!pt-4 !pb-2" icon={<Captions size={40} strokeWidth={1.4} />} title={t("subs.empty")} text={hasAudio ? t("subs.emptyHint") : "В видео нет звука."} />
+        <EmptyState className="!pt-4 !pb-2" icon={<Captions size={40} strokeWidth={1.4} />} title={t("subs.empty")} text={hasAudio ? t("subs.emptyHint") : t("subs.noAudio")} />
       )}
       <div className="space-y-3 px-4">
         <FieldRow label={t("subs.language")}>
@@ -250,11 +250,11 @@ function LineCard({ line, last, active, selected }: { line: Line; last: boolean;
           {formatTimecode(s, true)} – {formatTimecode(e, true)}
         </button>
         <div className="flex items-center">
-          <SmallIcon label={`${t("subs.shift")} −0,1 с`} onClick={() => setLines((ls) => shiftLine(ls, line.id, -0.1))}>
+          <SmallIcon label={t("subs.shiftMinus")} onClick={() => setLines((ls) => shiftLine(ls, line.id, -0.1))}>
             <Minus size={15} />
           </SmallIcon>
           <span className="px-0.5 text-caption-2 text-label-3">{t("subs.shift")}</span>
-          <SmallIcon label={`${t("subs.shift")} +0,1 с`} onClick={() => setLines((ls) => shiftLine(ls, line.id, 0.1))}>
+          <SmallIcon label={t("subs.shiftPlus")} onClick={() => setLines((ls) => shiftLine(ls, line.id, 0.1))}>
             <Plus size={15} />
           </SmallIcon>
         </div>
@@ -323,7 +323,7 @@ function PresetCard({ id, active, onClick }: { id: string; active: boolean; onCl
   useEffect(() => {
     if (face) ensureFont(face).then(() => force((x) => x + 1));
   }, [face]);
-  const sample = st.uppercase ? "ПРИВЕТ МИР" : "Привет мир";
+  const sample = st.uppercase ? t("subs.sampleShort").toUpperCase() : t("subs.sampleShort");
   return (
     <button
       type="button"
@@ -430,7 +430,7 @@ function StyleEditor() {
             label={t("subs.weight")}
             value={style.fontWeight}
             onChange={(w) => set((s) => void (s.fontWeight = w))}
-            options={fam.weights.map((w) => ({ value: w.weight, label: { 400: "Обычный", 600: "Полужирный", 700: "Жирный", 800: "Очень жирный", 900: "Чёрный" }[w.weight] ?? String(w.weight) }))}
+            options={fam.weights.map((w) => ({ value: w.weight, label: t(`subs.weights.${w.weight}`) }))}
           />
         </FieldRow>
       )}

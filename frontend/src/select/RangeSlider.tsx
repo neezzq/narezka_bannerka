@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { ThumbStrip } from "@/components/ThumbStrip";
 import { formatTimecode } from "@/lib/timecode";
 import type { Sprite } from "@/lib/types";
+import { t } from "@/i18n";
 
 type DragKind = "start" | "end" | "move";
 
@@ -108,13 +109,13 @@ export function RangeSlider({
           style={{ left: `${sx}%`, width: `${Math.max(0, ex - sx)}%` }}
           onPointerDown={begin("move")}
           role="group"
-          aria-label={`Выбран отрезок ${formatTimecode(start)}–${formatTimecode(end)}`}
+          aria-label={t("a11y.selectedRange", { from: formatTimecode(start), to: formatTimecode(end) })}
         >
           <div
             className={`${handle} -left-5 rounded-l-[10px]`}
             onPointerDown={begin("start")}
             role="slider"
-            aria-label="Начало отрезка"
+            aria-label={t("a11y.rangeStart")}
             aria-valuemin={0}
             aria-valuemax={duration}
             aria-valuenow={start}
@@ -132,7 +133,7 @@ export function RangeSlider({
             className={`${handle} -right-5 rounded-r-[10px]`}
             onPointerDown={begin("end")}
             role="slider"
-            aria-label="Конец отрезка"
+            aria-label={t("a11y.rangeEnd")}
             aria-valuemin={0}
             aria-valuemax={duration}
             aria-valuenow={end}
@@ -194,7 +195,7 @@ export function OverviewBar({
       }}
       onPointerMove={(e) => (e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId) && set(e.clientX)}
       role="slider"
-      aria-label="Окно просмотра"
+      aria-label={t("a11y.window")}
       aria-valuemin={0}
       aria-valuemax={duration}
       aria-valuenow={windowStart}

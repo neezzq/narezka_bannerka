@@ -11,6 +11,7 @@ import {
   ProgressRing,
   Sheet,
   TabBar,
+  toast,
   type TabItem,
 } from "@/components/ios";
 import { t } from "@/i18n";
@@ -176,7 +177,7 @@ function PreparingView({ onReady }: { onReady: () => void }) {
                         const { project } = await api.createProject({ url: meta.sourceUrl!, start: meta.sourceRange.start, end: meta.sourceRange.end, title: meta.title });
                         nav(`/p/${project.id}`, { replace: true });
                       } catch (e) {
-                        alert((e as Error).message);
+                        toast({ title: (e as Error).message, tone: "error" });
                       }
                     }}
                   >
@@ -260,7 +261,7 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
       <NavBar
         title={meta.title}
         subtitle={<span className={saveState === "error" ? "text-danger" : ""}>{saveLabel}</span>}
-        left={<NavBack label="Проекты" onClick={() => nav("/")} />}
+        left={<NavBack label={t("editor.projects")} onClick={() => nav("/")} />}
         right={
           <Button size="sm" onClick={() => setExportOpen(true)} className="mr-1.5">
             {t("editor.export")}
@@ -285,7 +286,7 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
                 {panel}
               </Sheet>
             ) : (
-              <EmptyState className="m-auto" icon={<Crop size={40} strokeWidth={1.4} />} title="Инструменты" text="Выберите инструмент на панели снизу: субтитры, баннер, хромакей или формат кадра." />
+              <EmptyState className="m-auto" icon={<Crop size={40} strokeWidth={1.4} />} title={t("editor.toolsTitle")} text={t("editor.toolsHint")} />
             )}
           </aside>
         )}

@@ -249,7 +249,7 @@ export function Timeline() {
         onPointerDown={() => usePlayer.getState().playing && playback.pause()}
         className="no-scrollbar relative overflow-x-auto overflow-y-hidden"
         style={{ touchAction: "pan-x" }}
-        aria-label="Таймлайн"
+        aria-label={t("a11y.timeline")}
       >
         <div className="relative" style={{ width: contentW + 2 * pad, paddingLeft: pad, paddingRight: pad }}>
           {/* ruler */}
@@ -327,7 +327,7 @@ export function Timeline() {
                   onPointerDown={sel ? beginDrag({ kind: "banner-move", id: b.id, x0: 0, s0: b.start, e0: b.end }) : undefined}
                   onClick={() => !sel && select({ kind: "banner", id: b.id }, "banner")}
                   role="button"
-                  aria-label={`Баннер ${formatTimecode(b.start)}–${formatTimecode(b.end)}`}
+                  aria-label={t("a11y.bannerRange", { from: formatTimecode(b.start), to: formatTimecode(b.end) })}
                 >
                   {sel && (
                     <span className="absolute inset-y-0 left-0 z-10 flex w-4 cursor-ew-resize items-center justify-center bg-white/30" onPointerDown={beginDrag({ kind: "banner-start", id: b.id, x0: 0, s0: b.start, e0: b.end })}>
@@ -336,7 +336,7 @@ export function Timeline() {
                   )}
                   <span className={`flex min-w-0 items-center gap-1 ${sel ? "px-5" : "px-1.5"}`}>
                     {asset?.thumbUrl ? <img src={asset.thumbUrl} alt="" className="size-4 shrink-0 rounded-[3px] object-cover" /> : <ImageIcon size={12} />}
-                    <span className="truncate">{asset?.name ?? "Баннер"}</span>
+                    <span className="truncate">{asset?.name ?? t("banner.untitled")}</span>
                   </span>
                   {sel && (
                     <span className="absolute inset-y-0 right-0 z-10 flex w-4 cursor-ew-resize items-center justify-center bg-white/30" onPointerDown={beginDrag({ kind: "banner-end", id: b.id, x0: 0, s0: b.start, e0: b.end })}>
@@ -403,7 +403,7 @@ function Clip({
       onClick={onSelect}
       role="button"
       aria-pressed={selected}
-      aria-label={`Кусок ${formatTimecode(cut.start)}–${formatTimecode(cut.end)}`}
+      aria-label={t("a11y.cutRange", { from: formatTimecode(cut.start), to: formatTimecode(cut.end) })}
     >
       <div className="absolute inset-0">{tiles}</div>
       {selected && (
@@ -413,7 +413,7 @@ function Clip({
             className="absolute inset-y-0 left-0 flex w-4 cursor-ew-resize touch-none items-center justify-center rounded-l-[8px] bg-accent text-on-accent"
             onPointerDown={onTrimStart}
             role="slider"
-            aria-label="Начало куска"
+            aria-label={t("a11y.cutStart")}
             aria-valuenow={cut.start}
           >
             <ChevronLeft size={14} strokeWidth={3} />
@@ -422,7 +422,7 @@ function Clip({
             className="absolute inset-y-0 right-0 flex w-4 cursor-ew-resize touch-none items-center justify-center rounded-r-[8px] bg-accent text-on-accent"
             onPointerDown={onTrimEnd}
             role="slider"
-            aria-label="Конец куска"
+            aria-label={t("a11y.cutEnd")}
             aria-valuenow={cut.end}
           >
             <ChevronRight size={14} strokeWidth={3} />

@@ -6,10 +6,10 @@ import { useEditor } from "@/store/editor";
 import { setAspect } from "../actions";
 
 const ASPECTS: { value: Aspect; w: number; h: number; label: string }[] = [
-  { value: "9:16", w: 18, h: 32, label: "Reels, Shorts" },
-  { value: "16:9", w: 32, h: 18, label: "YouTube" },
-  { value: "1:1", w: 26, h: 26, label: "Квадрат" },
-  { value: "4:5", w: 24, h: 30, label: "Лента" },
+  { value: "9:16", w: 18, h: 32, label: t("format.aspectLabels.9:16") },
+  { value: "16:9", w: 32, h: 18, label: t("format.aspectLabels.16:9") },
+  { value: "1:1", w: 26, h: 26, label: t("format.aspectLabels.1:1") },
+  { value: "4:5", w: 24, h: 30, label: t("format.aspectLabels.4:5") },
 ];
 
 export function FormatPanel() {

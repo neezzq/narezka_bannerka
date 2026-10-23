@@ -41,11 +41,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       transition={{ type: "spring", stiffness: 600, damping: 30 }}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`relative inline-flex select-none items-center justify-center rounded-full whitespace-nowrap transition-colors disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${full ? "w-full" : ""} ${className}`}
+      className={`relative inline-flex select-none items-center justify-center rounded-full whitespace-nowrap transition-colors disabled:cursor-not-allowed [&_svg]:shrink-0 ${variants[variant]} ${sizes[size]} ${full ? "w-full" : ""} ${className}`}
       {...rest}
     >
       {loading ? <ActivityIndicator size={18} className={variant === "filled" ? "text-on-accent" : ""} /> : icon}
-      {children && <span className={loading ? "opacity-80" : ""}>{children}</span>}
+      {children && <span className={`min-w-0 truncate ${loading ? "opacity-80" : ""}`}>{children}</span>}
     </motion.button>
   );
 });

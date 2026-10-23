@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 export function uid(len = 10): string {
@@ -9,7 +11,7 @@ export function uid(len = 10): string {
 }
 
 export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} Б`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} КБ`;
-  return `${(n / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
+  if (n < 1024) return t("units.bytes", { n });
+  if (n < 1024 * 1024) return t("units.kb", { n: Math.round(n / 1024) });
+  return t("units.mb", { n: (n / 1024 / 1024).toFixed(1).replace(".", ",") });
 }

@@ -94,7 +94,7 @@ export function BannersPanel() {
               <button
                 type="button"
                 onClick={() => a.status === "ready" && addBanner(a)}
-                aria-label={`Добавить «${a.name}»`}
+                aria-label={t("a11y.addAsset", { name: a.name })}
                 className="relative block size-[76px] overflow-hidden rounded-[12px] bg-[repeating-conic-gradient(#3a3a3c_0%_25%,#2c2c2e_0%_50%)] bg-[length:16px_16px]"
               >
                 {a.thumbUrl && <img src={a.thumbUrl} alt="" className="size-full object-contain" loading="lazy" />}
@@ -104,7 +104,7 @@ export function BannersPanel() {
               </button>
               <button
                 type="button"
-                aria-label={`${t("common.delete")} «${a.name}»`}
+                aria-label={t("a11y.deleteAsset", { name: a.name })}
                 onClick={() => removeAsset(a)}
                 className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full bg-surface-3 text-label-2 shadow"
               >
@@ -256,7 +256,7 @@ function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
         <AnimPicker value={banner.animOut} onChange={(v) => set((b) => void (b.animOut = v))} />
       </FieldRow>
       <FieldRow label={t("banner.animDuration")}>
-        <Slider label={t("banner.animDuration")} value={banner.animDuration} min={0.1} max={2} step={0.05} format={(v) => `${v.toFixed(2).replace(".", ",")} с`} onChangeStart={begin} onChangeEnd={end} onChange={(v) => set((b) => void (b.animDuration = v))} />
+        <Slider label={t("banner.animDuration")} value={banner.animDuration} min={0.1} max={2} step={0.05} format={(v) => t("units.seconds", { n: v.toFixed(2).replace(".", ",") })} onChangeStart={begin} onChangeEnd={end} onChange={(v) => set((b) => void (b.animDuration = v))} />
       </FieldRow>
 
       <div className="grid grid-cols-2 gap-2 px-4 pt-2">

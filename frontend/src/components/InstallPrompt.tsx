@@ -102,7 +102,7 @@ export function InstallPrompt() {
               </li>
               <li className="flex items-center gap-3">
                 <span className="flex size-8 items-center justify-center rounded-lg bg-surface text-footnote font-semibold text-[#0A84FF]">
-                  Доб.
+                  {t("install.addShort")}
                 </span>
                 3. {t("install.iosStep3")}
               </li>

@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { t } from "@/i18n";
 
 export const PALETTE = ["#FFFFFF", "#121214", "#A6E22E", "#FFE600", "#FF453A", "#FF9F0A", "#30D158", "#0A84FF", "#BF5AF2", "#FF375F"];
 
@@ -39,7 +40,7 @@ export function ColorSwatches({
           </button>
         );
       })}
-      <label className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center" aria-label="Свой цвет">
+      <label className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center" aria-label={t("a11y.customColor")}>
         <span
           className="size-8 rounded-full"
           style={{

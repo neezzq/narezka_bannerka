@@ -154,7 +154,7 @@ function TargetChip({ active, onClick, label, icon, on }: { active: boolean; onC
     >
       {icon}
       {label}
-      {on && <span className="size-1.5 rounded-full bg-current" aria-label="включён" />}
+      {on && <span className="size-1.5 rounded-full bg-current" aria-label={t("a11y.enabled")} />}
     </button>
   );
 }

@@ -1,0 +1,211 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ design tokens
+   Salad-graphite palette (dark is the primary theme, as in iOS video editors).
+   Tailwind utilities are generated from these variables: bg-surface, text-accent, … */
+@theme {
+  --color-bg: #121214;
+  --color-surface: #1c1c1e;
+  --color-surface-2: #2c2c2e;
+  --color-surface-3: #3a3a3c;
+  --color-separator: #3a3a3c;
+  --color-fill: rgba(120, 120, 128, 0.36);
+  --color-fill-2: rgba(120, 120, 128, 0.24);
+
+  --color-accent: #a6e22e;
+  --color-accent-light: #c5f25a;
+  --color-accent-dark: #7fb31a;
+  --color-accent-text: #a6e22e;
+  --color-on-accent: #121214;
+
+  --color-label: #ffffff;
+  --color-label-2: rgba(235, 235, 245, 0.6);
+  --color-label-3: rgba(235, 235, 245, 0.3);
+  --color-label-4: rgba(235, 235, 245, 0.16);
+
+  --color-danger: #ff453a;
+  --color-warning: #ffd60a;
+
+  --color-material: rgba(28, 28, 30, 0.72);
+  --color-material-thick: rgba(28, 28, 30, 0.9);
+  --color-backdrop: rgba(0, 0, 0, 0.45);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+
+  /* HIG type scale */
+  --text-large-title: 34px;
+  --text-large-title--line-height: 41px;
+  --text-title-1: 28px;
+  --text-title-1--line-height: 34px;
+  --text-title-2: 22px;
+  --text-title-2--line-height: 28px;
+  --text-title-3: 20px;
+  --text-title-3--line-height: 25px;
+  --text-headline: 17px;
+  --text-headline--line-height: 22px;
+  --text-body: 17px;
+  --text-body--line-height: 22px;
+  --text-callout: 16px;
+  --text-callout--line-height: 21px;
+  --text-subhead: 15px;
+  --text-subhead--line-height: 20px;
+  --text-footnote: 13px;
+  --text-footnote--line-height: 18px;
+  --text-caption-1: 12px;
+  --text-caption-1--line-height: 16px;
+  --text-caption-2: 11px;
+  --text-caption-2--line-height: 13px;
+
+  --radius-card: 14px;
+  --radius-group: 12px;
+  --radius-sheet: 10px;
+  --radius-control: 9px;
+
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Light theme (optional): graphite + salad on iOS grouped background */
+:root[data-theme="light"] {
+  --color-bg: #f2f2f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #e5e5ea;
+  --color-surface-3: #d1d1d6;
+  --color-separator: #c6c6c8;
+  --color-fill: rgba(120, 120, 128, 0.2);
+  --color-fill-2: rgba(120, 120, 128, 0.12);
+  --color-accent-text: #5f8a0e;
+  --color-label: #1c1c1e;
+  --color-label-2: rgba(60, 60, 67, 0.6);
+  --color-label-3: rgba(60, 60, 67, 0.3);
+  --color-label-4: rgba(60, 60, 67, 0.16);
+  --color-material: rgba(249, 249, 249, 0.78);
+  --color-material-thick: rgba(249, 249, 249, 0.94);
+  --color-backdrop: rgba(0, 0, 0, 0.25);
+  --seg-thumb: #ffffff;
+  color-scheme: light;
+}
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-h: 44px;
+  --seg-thumb: #636366;
+  --tab-h: 49px;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-bg);
+    color: var(--color-label);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+  }
+  #root {
+    height: 100%;
+  }
+  button,
+  [role="button"],
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+  input,
+  textarea {
+    font-size: 17px; /* prevents iOS auto-zoom on focus */
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  .material {
+    background: var(--color-material);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .material-thick {
+    background: var(--color-material-thick);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+  }
+  .hairline-b {
+    box-shadow: inset 0 -0.5px 0 var(--color-separator);
+  }
+  .hairline-t {
+    box-shadow: inset 0 0.5px 0 var(--color-separator);
+  }
+  .scroll-y {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--color-surface-2) 0%, var(--color-surface-3) 50%, var(--color-surface-2) 100%);
+    background-size: 200% 100%;
+    animation: bk-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes bk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes bk-spin-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

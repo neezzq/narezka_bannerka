@@ -1,0 +1,296 @@
+[
+  {
+    "id": "montserrat",
+    "name": "Montserrat",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "montserrat-400.ttf",
+        "internalName": "BK Montserrat 400",
+        "unitsPerEm": 1000,
+        "ascent": 1109,
+        "descent": 453,
+        "assRatio": 1.562
+      },
+      {
+        "weight": 700,
+        "file": "montserrat-700.ttf",
+        "internalName": "BK Montserrat 700",
+        "unitsPerEm": 1000,
+        "ascent": 1109,
+        "descent": 453,
+        "assRatio": 1.562
+      },
+      {
+        "weight": 900,
+        "file": "montserrat-900.ttf",
+        "internalName": "BK Montserrat 900",
+        "unitsPerEm": 1000,
+        "ascent": 1109,
+        "descent": 453,
+        "assRatio": 1.562
+      }
+    ]
+  },
+  {
+    "id": "inter",
+    "name": "Inter",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "inter-400.ttf",
+        "internalName": "BK Inter 400",
+        "unitsPerEm": 2048,
+        "ascent": 2269,
+        "descent": 660,
+        "assRatio": 1.430176
+      },
+      {
+        "weight": 700,
+        "file": "inter-700.ttf",
+        "internalName": "BK Inter 700",
+        "unitsPerEm": 2048,
+        "ascent": 2269,
+        "descent": 660,
+        "assRatio": 1.430176
+      },
+      {
+        "weight": 900,
+        "file": "inter-900.ttf",
+        "internalName": "BK Inter 900",
+        "unitsPerEm": 2048,
+        "ascent": 2269,
+        "descent": 660,
+        "assRatio": 1.430176
+      }
+    ]
+  },
+  {
+    "id": "roboto",
+    "name": "Roboto",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "roboto-400.ttf",
+        "internalName": "BK Roboto 400",
+        "unitsPerEm": 2048,
+        "ascent": 1946,
+        "descent": 512,
+        "assRatio": 1.200195
+      },
+      {
+        "weight": 700,
+        "file": "roboto-700.ttf",
+        "internalName": "BK Roboto 700",
+        "unitsPerEm": 2048,
+        "ascent": 1946,
+        "descent": 512,
+        "assRatio": 1.200195
+      },
+      {
+        "weight": 900,
+        "file": "roboto-900.ttf",
+        "internalName": "BK Roboto 900",
+        "unitsPerEm": 2048,
+        "ascent": 1946,
+        "descent": 512,
+        "assRatio": 1.200195
+      }
+    ]
+  },
+  {
+    "id": "rubik",
+    "name": "Rubik",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "rubik-400.ttf",
+        "internalName": "BK Rubik 400",
+        "unitsPerEm": 1000,
+        "ascent": 1066,
+        "descent": 466,
+        "assRatio": 1.532
+      },
+      {
+        "weight": 700,
+        "file": "rubik-700.ttf",
+        "internalName": "BK Rubik 700",
+        "unitsPerEm": 1000,
+        "ascent": 1066,
+        "descent": 466,
+        "assRatio": 1.532
+      },
+      {
+        "weight": 900,
+        "file": "rubik-900.ttf",
+        "internalName": "BK Rubik 900",
+        "unitsPerEm": 1000,
+        "ascent": 1066,
+        "descent": 466,
+        "assRatio": 1.532
+      }
+    ]
+  },
+  {
+    "id": "oswald",
+    "name": "Oswald",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "oswald-400.ttf",
+        "internalName": "BK Oswald 400",
+        "unitsPerEm": 1000,
+        "ascent": 1325,
+        "descent": 377,
+        "assRatio": 1.702
+      },
+      {
+        "weight": 700,
+        "file": "oswald-700.ttf",
+        "internalName": "BK Oswald 700",
+        "unitsPerEm": 1000,
+        "ascent": 1325,
+        "descent": 377,
+        "assRatio": 1.702
+      }
+    ]
+  },
+  {
+    "id": "manrope",
+    "name": "Manrope",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "manrope-400.ttf",
+        "internalName": "BK Manrope 400",
+        "unitsPerEm": 2000,
+        "ascent": 2132,
+        "descent": 600,
+        "assRatio": 1.366
+      },
+      {
+        "weight": 700,
+        "file": "manrope-700.ttf",
+        "internalName": "BK Manrope 700",
+        "unitsPerEm": 2000,
+        "ascent": 2132,
+        "descent": 600,
+        "assRatio": 1.366
+      },
+      {
+        "weight": 800,
+        "file": "manrope-800.ttf",
+        "internalName": "BK Manrope 800",
+        "unitsPerEm": 2000,
+        "ascent": 2132,
+        "descent": 600,
+        "assRatio": 1.366
+      }
+    ]
+  },
+  {
+    "id": "unbounded",
+    "name": "Unbounded",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "unbounded-400.ttf",
+        "internalName": "BK Unbounded 400",
+        "unitsPerEm": 1000,
+        "ascent": 1262,
+        "descent": 286,
+        "assRatio": 1.548
+      },
+      {
+        "weight": 700,
+        "file": "unbounded-700.ttf",
+        "internalName": "BK Unbounded 700",
+        "unitsPerEm": 1000,
+        "ascent": 1262,
+        "descent": 286,
+        "assRatio": 1.548
+      },
+      {
+        "weight": 900,
+        "file": "unbounded-900.ttf",
+        "internalName": "BK Unbounded 900",
+        "unitsPerEm": 1000,
+        "ascent": 1262,
+        "descent": 286,
+        "assRatio": 1.548
+      }
+    ]
+  },
+  {
+    "id": "nunito",
+    "name": "Nunito",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "nunito-400.ttf",
+        "internalName": "BK Nunito 400",
+        "unitsPerEm": 1000,
+        "ascent": 1077,
+        "descent": 300,
+        "assRatio": 1.377
+      },
+      {
+        "weight": 700,
+        "file": "nunito-700.ttf",
+        "internalName": "BK Nunito 700",
+        "unitsPerEm": 1000,
+        "ascent": 1077,
+        "descent": 300,
+        "assRatio": 1.377
+      },
+      {
+        "weight": 900,
+        "file": "nunito-900.ttf",
+        "internalName": "BK Nunito 900",
+        "unitsPerEm": 1000,
+        "ascent": 1077,
+        "descent": 300,
+        "assRatio": 1.377
+      }
+    ]
+  },
+  {
+    "id": "comfortaa",
+    "name": "Comfortaa",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "comfortaa-400.ttf",
+        "internalName": "BK Comfortaa 400",
+        "unitsPerEm": 1000,
+        "ascent": 1285,
+        "descent": 332,
+        "assRatio": 1.617
+      },
+      {
+        "weight": 700,
+        "file": "comfortaa-700.ttf",
+        "internalName": "BK Comfortaa 700",
+        "unitsPerEm": 1000,
+        "ascent": 1285,
+        "descent": 332,
+        "assRatio": 1.617
+      }
+    ]
+  },
+  {
+    "id": "russo-one",
+    "name": "Russo One",
+    "weights": [
+      {
+        "weight": 400,
+        "file": "russo-one-400.ttf",
+        "internalName": "BK Russo One 400",
+        "unitsPerEm": 1000,
+        "ascent": 926,
+        "descent": 279,
+        "assRatio": 1.205
+      }
+    ]
+  }
+]

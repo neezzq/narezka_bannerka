@@ -1,0 +1,63 @@
+name: bannerka
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+    args:
+      WITH_WHISPER: ${WITH_WHISPER:-1}
+  image: bannerka-backend:latest
+  env_file: .env
+  environment:
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_DIR: /data/storage
+    FONTS_DIR: /app/fonts
+    X_ACCEL_REDIRECT: "true"
+  volumes:
+    - storage:/data/storage
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    <<: *backend
+    command: ["arq", "app.worker.tasks.WorkerSettings"]
+
+  web:
+    build:
+      context: ./frontend
+    image: bannerka-web:latest
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - storage:/data/storage:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  storage:
+  redis-data:

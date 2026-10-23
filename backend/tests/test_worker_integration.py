@@ -119,3 +119,65 @@ async def test_cleanup_removes_expired(env):
     assert not (d / "x.mp4").exists() and not pdir.exists()
     async with sessionmaker()() as db:
         assert (await db.execute(select(StoredFile))).scalars().all() == []
+
+
+async def test_transcribe_job(env, monkeypatch):
+    from app.db import Job, Project, init_db, sessionmaker
+    from app.jobs import create_job
+    from app.services import ytdlp
+    from app.worker import tasks
+    from app.worker.transcribe import ModelError
+
+    await init_db()
+    source = make_video(env["tmp"] / "remote.mp4", seconds=3)
+
+    async def fake_download(ref, out_dir, **_kw):
+        dst = out_dir / "source.mp4"
+        shutil.copy(source, dst)
+        return dst
+
+    monkeypatch.setattr(ytdlp, "download", fake_download)
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    async with sessionmaker()() as db:
+        db.add(Project(id="p2", session_id="s1", title="Речь", platform="youtube", source_url=url,
+                       source_start=0, source_end=3, doc={}))
+        await db.commit()
+        job = await create_job(db, session_id="s1", kind="download", project_id="p2",
+                               payload={"url": url, "start": 0.0, "end": 3.0})
+    await tasks.run_job({}, job.id)
+
+    async def run_transcribe() -> Job:
+        async with sessionmaker()() as db:
+            j = await create_job(db, session_id="s1", kind="transcribe", project_id="p2", payload={"language": "ru"})
+        await tasks.run_job({}, j.id)
+        async with sessionmaker()() as db:
+            return await db.get(Job, j.id)
+
+    # a missing model reaches the user as an explanation, not a generic error
+    async def no_model(*_a, **_kw):
+        raise ModelError("Не удалось скачать модель распознавания речи «small».")
+
+    monkeypatch.setattr(tasks, "transcribe", no_model)
+    failed = await run_transcribe()
+    assert failed.status == "error" and "скачать модель" in failed.error
+
+    async def boom(*_a, **_kw):
+        raise RuntimeError("ctranslate2 exploded")
+
+    monkeypatch.setattr(tasks, "transcribe", boom)
+    failed = await run_transcribe()
+    assert failed.error == "Не удалось распознать речь. (RuntimeError)"
+
+    async def fake_transcribe(wav, language, duration, on_progress):
+        assert wav.exists() and language == "ru"
+        await on_progress(0.5)
+        return {"language": "ru", "words": [{"text": "Привет", "start": 0.2, "end": 0.6},
+                                            {"text": "мир.", "start": 0.7, "end": 1.1}]}
+
+    monkeypatch.setattr(tasks, "transcribe", fake_transcribe)
+    done = await run_transcribe()
+    assert done.status == "done", done.error
+    async with sessionmaker()() as db:
+        project = await db.get(Project, "p2")
+    words = [w["text"] for line in project.doc["subtitles"]["lines"] for w in line["words"]]
+    assert words == ["Привет", "мир."]

@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel, Field
 
 from .api import assets, files, jobs, projects, source
 from .config import get_settings
@@ -126,6 +127,21 @@ async def config() -> dict:
             {"code": "es", "name": "Español"},
         ],
     }
+
+
+class ClientError(BaseModel):
+    message: str = Field("", max_length=500)
+    stack: str = Field("", max_length=2000)
+    context: str = Field("", max_length=100)
+    url: str = Field("", max_length=300)
+
+
+@app.post("/api/client-log", status_code=204)
+async def client_log(body: ClientError, request: Request) -> Response:
+    """Errors from browsers end up here: the only trace of what broke on a phone."""
+    ua = request.headers.get("user-agent", "")[:200]
+    log.warning("client error [%s] %s at %s | %s\n%s", body.context, body.message, body.url, ua, body.stack)
+    return Response(status_code=204)
 
 
 for r in (source.router, projects.router, assets.router, jobs.router, files.router):

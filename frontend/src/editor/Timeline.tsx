@@ -92,16 +92,20 @@ export function Timeline() {
   useEffect(updateView, [cw, pps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const raf = useRef(0);
+  const userAt = useRef(0);
   const onScroll = () => {
     const el = scroller.current!;
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(updateView);
-    if (expected.current !== null && Math.abs(el.scrollLeft - expected.current) < 2) {
-      expected.current = null;
-      return;
-    }
+    const programmatic = expected.current !== null && Math.abs(el.scrollLeft - expected.current) < 2;
     expected.current = null;
-    if (usePlayer.getState().playing) playback.pause();
+    if (programmatic) return;
+    if (usePlayer.getState().playing) {
+      // while playing only a finger or a wheel moves the strip; anything else
+      // is a late event of our own scrolling (Safari delivers them async)
+      if (performance.now() - userAt.current > 1000) return;
+      playback.pause();
+    }
     playback.seek(el.scrollLeft / ppsRef.current);
   };
 
@@ -246,7 +250,11 @@ export function Timeline() {
       <div
         ref={scroller}
         onScroll={onScroll}
-        onPointerDown={() => usePlayer.getState().playing && playback.pause()}
+        onPointerDown={() => {
+          userAt.current = performance.now();
+          if (usePlayer.getState().playing) playback.pause();
+        }}
+        onWheel={() => (userAt.current = performance.now())}
         className="no-scrollbar relative overflow-x-auto overflow-y-hidden"
         style={{ touchAction: "pan-x" }}
         aria-label={t("a11y.timeline")}

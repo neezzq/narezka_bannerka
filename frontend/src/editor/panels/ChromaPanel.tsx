@@ -1,10 +1,13 @@
-import { Pipette, RotateCcw, Video } from "lucide-react";
+import { Pipette, RotateCcw, Video, Wand2 } from "lucide-react";
 import { useState } from "react";
-import { Button, EmptyState, FieldRow, Slider, Toggle } from "@/components/ios";
+import { Button, EmptyState, FieldRow, Slider, Toggle, toast } from "@/components/ios";
 import { t } from "@/i18n";
+import { isNeutralKey } from "@/lib/chroma";
 import type { ChromaSettings } from "@/lib/types";
 import { useAssets } from "@/store/assets";
 import { useEditor } from "@/store/editor";
+import { autoKeyColor } from "../chroma/sample";
+import { chromaSource } from "../chroma/target";
 
 const DEFAULT: ChromaSettings = { enabled: true, color: "#00FF00", similarity: 0.12, blend: 0.08, spill: 0.5 };
 const KEYS = [
@@ -23,6 +26,7 @@ export function ChromaPanel() {
   const begin = useEditor((s) => s.beginGesture);
   const end = useEditor((s) => s.endGesture);
   const assets = useAssets((s) => s.assets);
+  const [detecting, setDetecting] = useState(false);
   const [webgl] = useState(() => {
     try {
       return !!document.createElement("canvas").getContext("webgl");
@@ -48,6 +52,30 @@ export function ChromaPanel() {
         fn(b.chroma);
       }
     });
+
+  /** Backdrop colour of the target's frame border, or null. */
+  const detect = async () => {
+    setDetecting(true);
+    try {
+      const { src, fallback } = chromaSource(effectiveTarget);
+      return await autoKeyColor(src, fallback);
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const enable = async (on: boolean) => {
+    if (!on) return set((c) => void (c.enabled = false));
+    // first time (or a grey colour left from a wrong pick): find the backdrop
+    const color = !settings || isNeutralKey(settings.color) ? ((await detect()) ?? DEFAULT.color) : settings.color;
+    set((c) => Object.assign(c, { enabled: true, color }));
+  };
+
+  const autoColor = async () => {
+    const color = await detect();
+    if (color) set((c) => void (c.color = color));
+    else toast({ title: t("chroma.autoNotFound"), tone: "info" });
+  };
 
   const selectTarget = (id: string) => {
     const st = useEditor.getState();
@@ -96,7 +124,7 @@ export function ChromaPanel() {
 
       <div className="flex min-h-11 items-center justify-between px-4">
         <span className="text-body">{t("chroma.enabled")}</span>
-        <Toggle label={t("chroma.enabled")} checked={s.enabled} onChange={(v) => set((c) => void (c.enabled = v))} />
+        <Toggle label={t("chroma.enabled")} checked={s.enabled} onChange={(v) => void enable(v)} />
       </div>
 
       {s.enabled ? (
@@ -117,6 +145,11 @@ export function ChromaPanel() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="mt-2 flex gap-2">
+              <Button variant="tinted" size="sm" icon={<Wand2 size={15} />} disabled={detecting} onClick={() => void autoColor()}>
+                {t("chroma.auto")}
+              </Button>
               <Button
                 variant={eyedropper ? "filled" : "tinted"}
                 size="sm"
@@ -126,6 +159,7 @@ export function ChromaPanel() {
                 {t("chroma.eyedropper")}
               </Button>
             </div>
+            {isNeutralKey(s.color) && <p className="mt-2 rounded-[10px] bg-warning/15 p-3 text-footnote">{t("chroma.neutralWarning")}</p>}
           </FieldRow>
           {slider(t("chroma.similarity"), "similarity", 0.5)}
           {slider(t("chroma.blend"), "blend", 0.5)}

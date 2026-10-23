@@ -35,7 +35,7 @@ from ..services.ffmpeg import (
 from ..services.projects import default_doc
 from ..services.storage import download_url, get_storage, media_url, new_id
 from ..services.urls import parse_source_url
-from .transcribe import group_words, transcribe
+from .transcribe import ModelError, group_words, transcribe
 
 log = logging.getLogger("bannerka.worker")
 
@@ -264,8 +264,15 @@ async def task_transcribe(job: Job, rep: JobReporter) -> dict:
             await rep.stage("recognize")
         await rep.progress(frac)
 
-    result = await transcribe(wav, None if language == "auto" else language, duration, on_progress)
-    wav.unlink(missing_ok=True)
+    try:
+        result = await transcribe(wav, None if language == "auto" else language, duration, on_progress)
+    except ModelError as exc:
+        raise UserError(str(exc), code="whisper_unavailable") from exc
+    except MemoryError as exc:
+        raise UserError("Серверу не хватает памяти для распознавания речи. Укажите WHISPER_MODEL=base в .env.",
+                        code="whisper_memory") from exc
+    finally:
+        wav.unlink(missing_ok=True)
     words = result["words"]
     if not words:
         raise UserError("Речь не распознана. Попробуйте выбрать язык вручную.", code="no_speech")
@@ -417,9 +424,10 @@ async def run_job(ctx: dict, job_id: str) -> None:
         msg = GENERIC_ERRORS.get(job.kind, "Ошибка обработки.")
         await rep.fail(msg)
         await _mark_project_failed(job, msg)
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         log.exception("job %s (%s) failed", job.id, job.kind)
-        msg = GENERIC_ERRORS.get(job.kind, "Ошибка обработки.")
+        # the class name lets a screenshot point at the cause; details are in the worker log
+        msg = f"{GENERIC_ERRORS.get(job.kind, 'Ошибка обработки.')} ({type(exc).__name__})"
         await rep.fail(msg)
         await _mark_project_failed(job, msg)
 

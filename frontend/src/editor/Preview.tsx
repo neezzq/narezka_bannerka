@@ -4,8 +4,11 @@ import { t } from "@/i18n";
 import { bannerState, clamp, frameSize, videoPlacement } from "@/lib/geometry";
 import type { Banner, ChromaSettings } from "@/lib/types";
 import { useEditor } from "@/store/editor";
-import { BannerLayer, bannerSources } from "./banners/BannerLayer";
-import { ChromaCanvas, sampleColor } from "./chroma/ChromaCanvas";
+import { BannerLayer } from "./banners/BannerLayer";
+import { isNeutralKey } from "@/lib/chroma";
+import { ChromaCanvas } from "./chroma/ChromaCanvas";
+import { pickColor } from "./chroma/sample";
+import { chromaSource } from "./chroma/target";
 import { playback, usePlayer } from "./playback";
 import { SubtitleCanvas, subtitleHit } from "./subtitles/SubtitleCanvas";
 
@@ -80,7 +83,7 @@ export function Preview({ bottomInset = 0 }: { bottomInset?: number }) {
           <BannerLayer banners={banners} W={W} H={H} displayScale={scale} />
         </div>
         {scale > 0 && <SubtitleCanvas W={W} H={H} scale={scale} />}
-        {scale > 0 && <Gestures W={W} H={H} s={scale} getVideo={getVideo} />}
+        {scale > 0 && <Gestures W={W} H={H} s={scale} />}
       </div>
     </div>
   );
@@ -115,7 +118,7 @@ function hitBanner(b: Banner, px: number, py: number, W: number, H: number, pad 
   return Math.abs(lx) <= (b.w * W) / 2 + pad && Math.abs(ly) <= (b.h * H) / 2 + pad;
 }
 
-function Gestures({ W, H, s, getVideo }: { W: number; H: number; s: number; getVideo: () => HTMLVideoElement | null }) {
+function Gestures({ W, H, s }: { W: number; H: number; s: number }) {
   const layer = useRef<HTMLDivElement>(null);
   const g = useRef<GestureState | null>(null);
   const [guides, setGuides] = useState<{ v: boolean; h: boolean }>({ v: false, h: false });
@@ -131,31 +134,35 @@ function Gestures({ W, H, s, getVideo }: { W: number; H: number; s: number; getV
     return { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s };
   };
 
-  const pickEyedropper = (p: { x: number; y: number }) => {
+  const pickEyedropper = async (p: { x: number; y: number }) => {
     const st = useEditor.getState();
     const target = st.chromaTarget;
-    let color: string | null = null;
+    st.setEyedropper(false);
+    // tap point → normalised coords inside the target element
+    let uv: [number, number] | null = null;
     if (target === "video") {
-      const v = getVideo();
       const pl = videoPlacement(st.doc!, st.meta!.media!, W, H);
-      if (v) color = sampleColor(v, (p.x - pl.x0) / pl.sw, (p.y - pl.y0) / pl.sh);
+      uv = [(p.x - pl.x0) / pl.sw, (p.y - pl.y0) / pl.sh];
     } else {
       const b = st.doc!.banners.find((x) => x.id === target);
-      const src = bannerSources.get(target)?.();
-      if (b && src) {
-        const cx = (b.x + b.w / 2) * W;
-        const cy = (b.y + b.h / 2) * H;
+      if (b) {
         const a = (-b.rotation * Math.PI) / 180;
-        const dx = p.x - cx;
-        const dy = p.y - cy;
+        const dx = p.x - (b.x + b.w / 2) * W;
+        const dy = p.y - (b.y + b.h / 2) * H;
         const lx = dx * Math.cos(a) - dy * Math.sin(a);
         const ly = dx * Math.sin(a) + dy * Math.cos(a);
-        color = sampleColor(src, lx / (b.w * W) + 0.5, ly / (b.h * H) + 0.5);
+        uv = [lx / (b.w * W) + 0.5, ly / (b.h * H) + 0.5];
       }
     }
-    st.setEyedropper(false);
+    const { src, fallback } = chromaSource(target);
+    const color = uv ? await pickColor(src, uv[0], uv[1], fallback) : null;
     if (!color) {
-      toast({ title: t("common.error"), tone: "error" });
+      toast({ title: t("chroma.pickFailed"), tone: "error" });
+      return;
+    }
+    if (isNeutralKey(color)) {
+      // a grey key would cut out every dark, light and grey pixel
+      toast({ title: t("chroma.neutralTitle"), message: t("chroma.neutralPick"), tone: "error", duration: 6000 });
       return;
     }
     st.update((d) => {
@@ -164,7 +171,7 @@ function Gestures({ W, H, s, getVideo }: { W: number; H: number; s: number; getV
         similarity: c?.similarity ?? 0.12,
         blend: c?.blend ?? 0.08,
         spill: c?.spill ?? 0.5,
-        color: color!,
+        color,
       });
       if (target === "video") d.videoChroma = apply(d.videoChroma);
       else {

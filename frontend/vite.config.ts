@@ -41,8 +41,13 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            // previews, thumbnails, banners: immutable by id
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/media/") && !/\.(mp4|mov|webm)$/.test(url.pathname),
+            // thumbnails, sprites, banner images: immutable by id. Audio/video is
+            // left to the browser: Safari mishandles media served by a worker.
+            urlPattern: ({ url, request }) =>
+              url.pathname.startsWith("/api/media/") &&
+              request.destination !== "video" &&
+              request.destination !== "audio" &&
+              !request.headers.has("range"),
             handler: "CacheFirst",
             options: {
               cacheName: "bk-media",

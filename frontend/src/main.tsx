@@ -3,9 +3,11 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { toast } from "./components/ios";
 import { t } from "./i18n";
+import { installErrorReporting } from "./lib/report";
 import { applyTheme, useApp } from "./store/app";
 import "./styles/index.css";
 
+installErrorReporting();
 applyTheme(useApp.getState().theme);
 
 // Block page pinch-zoom (iOS ignores user-scalable=no); double-tap zoom is

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import threading
 from collections.abc import Callable
@@ -11,27 +12,57 @@ from typing import Any
 
 from ..config import get_settings
 
+log = logging.getLogger("bannerka.whisper")
 _model: Any = None
 _model_lock = threading.Lock()
 
 SENTENCE_END = re.compile(r"[.!?…]+[»\"')]*$")
 
 
+class ModelError(Exception):
+    """The speech model could not be fetched or started; the message is user-facing."""
+
+
 def _get_model() -> Any:
     global _model
     with _model_lock:
         if _model is None:
-            from faster_whisper import WhisperModel  # heavy import, only in the worker
+            try:  # heavy import, only in the worker
+                from faster_whisper import WhisperModel
+                from faster_whisper.utils import download_model
+            except ImportError as exc:
+                raise ModelError("Распознавание речи не установлено на сервере: соберите образ с WITH_WHISPER=1.") from exc
 
             s = get_settings()
             s.models_dir.mkdir(parents=True, exist_ok=True)
-            _model = WhisperModel(
-                s.whisper_model,
-                device=s.whisper_device,
-                compute_type=s.whisper_compute_type,
-                cpu_threads=s.whisper_cpu_threads,
-                download_root=str(s.models_dir),
-            )
+            name = s.whisper_model
+            path = name if Path(name).is_dir() else None
+            if path is None:
+                try:  # cached copy first: no network round trip on every worker start
+                    path = download_model(name, local_files_only=True, cache_dir=str(s.models_dir))
+                except Exception:  # noqa: BLE001 - not cached yet
+                    log.info("downloading whisper model %s into %s", name, s.models_dir)
+                    try:
+                        path = download_model(name, cache_dir=str(s.models_dir))
+                    except Exception as exc:
+                        log.exception("whisper model %s download failed", name)
+                        raise ModelError(
+                            f"Не удалось скачать модель распознавания речи «{name}»: сервер не достучался "
+                            "до huggingface.co. Попробуйте позже."
+                        ) from exc
+            try:
+                _model = WhisperModel(
+                    path,
+                    device=s.whisper_device,
+                    compute_type=s.whisper_compute_type,
+                    cpu_threads=s.whisper_cpu_threads,
+                )
+            except Exception as exc:
+                log.exception("whisper model %s failed to load", name)
+                raise ModelError(
+                    "Не удалось запустить модель распознавания речи на сервере. Если на сервере мало памяти, "
+                    "укажите WHISPER_MODEL=base в .env."
+                ) from exc
         return _model
 
 

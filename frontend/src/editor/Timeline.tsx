@@ -9,9 +9,8 @@ import { useAssets } from "@/store/assets";
 import { useEditor } from "@/store/editor";
 import { playback, usePlayer } from "./playback";
 
-const CLIP_H = 52;
-const SUB_H = 24;
-const LANE_H = 24;
+// track heights: phone / desktop
+const SIZES = { compact: { clip: 52, sub: 24, lane: 24 }, large: { clip: 76, sub: 30, lane: 30 } };
 const MIN_CUT = 0.2;
 
 type Drag =
@@ -32,7 +31,8 @@ function lanes(banners: Banner[]): Map<string, number> {
   return out;
 }
 
-export function Timeline() {
+export function Timeline({ large = false }: { large?: boolean }) {
+  const { clip: CLIP_H, sub: SUB_H, lane: LANE_H } = large ? SIZES.large : SIZES.compact;
   const scroller = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
   const [pps, setPps] = useState(0);
@@ -141,9 +141,14 @@ export function Timeline() {
       d0 = 0;
     };
     const wheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      zoomTo(ppsRef.current * Math.exp(-e.deltaY * 0.01));
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        zoomTo(ppsRef.current * Math.exp(-e.deltaY * 0.01));
+      } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        // a mouse wheel scrolls the strip sideways
+        e.preventDefault();
+        el.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+      }
     };
     el.addEventListener("touchstart", ts, { passive: true });
     el.addEventListener("touchmove", tm, { passive: false });
@@ -285,6 +290,7 @@ export function Timeline() {
                 onTrimStart={beginDrag({ kind: "cut-start", id: c.id, x0: 0, v0: c.start })}
                 onTrimEnd={beginDrag({ kind: "cut-end", id: c.id, x0: 0, v0: c.end })}
                 sprite={sprite}
+                height={CLIP_H}
               />
             ))}
           </div>
@@ -377,6 +383,7 @@ function Clip({
   onTrimStart,
   onTrimEnd,
   sprite,
+  height,
 }: {
   cut: Cut;
   left: number;
@@ -388,6 +395,7 @@ function Clip({
   onTrimStart: (e: React.PointerEvent) => void;
   onTrimEnd: (e: React.PointerEvent) => void;
   sprite: import("@/lib/types").Sprite | undefined;
+  height: number;
 }) {
   const width = Math.max(4, (cut.end - cut.start) * pps);
   const n = Math.ceil(width / tileW);
@@ -400,7 +408,7 @@ function Clip({
       <div
         key={i}
         className="absolute top-0 h-full bg-surface-2"
-        style={{ left: i * tileW, width: tileW, ...(sprite ? tileStyle([sprite], Math.min(time, cut.end), tileW, CLIP_H) : {}) }}
+        style={{ left: i * tileW, width: tileW, ...(sprite ? tileStyle([sprite], Math.min(time, cut.end), tileW, height) : {}) }}
       />,
     );
   }

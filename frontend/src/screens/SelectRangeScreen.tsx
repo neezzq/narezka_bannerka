@@ -2,10 +2,12 @@ import { AlertTriangle, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { PlatformIcon } from "@/components/PlatformIcon";
-import { ActivityIndicator, Button, EmptyState, NavBack, NavBar, ProgressBar } from "@/components/ios";
+import { ActivityIndicator, Button, EmptyState, NavBack, NavBar, ProgressBar, SegmentedControl } from "@/components/ios";
 import { t } from "@/i18n";
 import { api, ApiError } from "@/lib/api";
 import { waitJob } from "@/lib/jobs";
+import { downloadQualities, pickQuality, qualityLabel } from "@/lib/quality";
+import { DESKTOP, useMedia } from "@/lib/useMedia";
 import { formatDuration, formatTimecode } from "@/lib/timecode";
 import type { PreviewResult, SourceInfo, Sprite } from "@/lib/types";
 import { OverviewBar, RangeSlider } from "@/select/RangeSlider";
@@ -41,6 +43,8 @@ export default function SelectRangeScreen() {
   const loc = useLocation();
   const [params] = useSearchParams();
   const limit = useApp((s) => s.config.maxClipSeconds);
+  const defaultQuality = useApp((s) => s.config.defaultQuality ?? 1080);
+  const maxQuality = useApp((s) => s.config.maxQuality ?? 2160);
   const [source, setSource] = useState<Source | null>(() => {
     const st = loc.state as { source?: SourceInfo; upload?: UploadInfo } | null;
     if (st?.source) return { kind: "remote", info: st.source };
@@ -58,6 +62,8 @@ export default function SelectRangeScreen() {
   const [tcError, setTcError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [quality, setQuality] = useState<number | null>(null);
+  const wide = useMedia(DESKTOP);
   const [strip, setStrip] = useState<{ key: string; sprites: Sprite[] } | null>(null);
   const player = useRef<PlayerHandle>(null);
 
@@ -176,6 +182,15 @@ export default function SelectRangeScreen() {
   const tooLong = len > limit + 0.05;
   const tooShort = len < 0.5;
 
+  const qualityOptions = useMemo(
+    () =>
+      source
+        ? downloadQualities(source.kind === "remote" ? source.info.qualities : undefined, source.info.width, source.info.height, maxQuality)
+        : [],
+    [source, maxQuality],
+  );
+  const chosenQuality = quality ?? pickQuality(qualityOptions, defaultQuality);
+
   const create = async () => {
     if (!range || !source || tooLong || tooShort) return;
     setCreating(true);
@@ -185,6 +200,7 @@ export default function SelectRangeScreen() {
         source.kind === "remote"
           ? { url: source.info.url, start: range[0], end: range[1], title: source.info.title }
           : { uploadId: source.info.uploadId, start: range[0], end: range[1], title: source.info.title };
+      if (chosenQuality) Object.assign(body, { quality: chosenQuality });
       const { project } = await api.createProject(body);
       nav(`/p/${project.id}`, { replace: true });
     } catch (e) {
@@ -232,42 +248,51 @@ export default function SelectRangeScreen() {
         </div>
       ) : (
         <main className="scroll-y min-h-0 flex-1 pb-[calc(var(--safe-bottom)+16px)]">
-          <div className="mx-auto w-full max-w-[640px]">
-            <div className="bg-black" style={{ aspectRatio: String(Math.max(9 / 16, Math.min(16 / 9, aspect))), maxHeight: "48vh", margin: "0 auto" }}>
-              {playerEl}
-            </div>
-            <div className="flex items-center gap-2 px-4 pt-3">
-              <PlatformIcon platform={platform} size={18} />
-              <h2 className="min-w-0 flex-1 truncate text-headline font-semibold">{title}</h2>
-              {duration > 0 && <span className="shrink-0 text-footnote tabular-nums text-label-2">{formatTimecode(duration)}</span>}
+          <div className="mx-auto w-full max-w-[640px] lg:grid lg:max-w-[1280px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-8 lg:px-8 lg:pt-6">
+            <div className="min-w-0">
+              <div
+                className="bg-black lg:overflow-hidden lg:rounded-[var(--radius-card)]"
+                style={{ aspectRatio: String(Math.max(9 / 16, Math.min(16 / 9, aspect))), maxHeight: wide ? "64vh" : "48vh", margin: "0 auto" }}
+              >
+                {playerEl}
+              </div>
+              <div className="flex items-center gap-2 px-4 pt-3 lg:px-1">
+                <PlatformIcon platform={platform} size={18} />
+                <h2 className="min-w-0 flex-1 truncate text-headline font-semibold">{title}</h2>
+                {duration > 0 && <span className="shrink-0 text-footnote tabular-nums text-label-2">{formatTimecode(duration)}</span>}
+              </div>
+
+              {range && duration > 0 && (
+                <div className="px-5 pt-4 lg:px-0">
+                  {duration > WINDOW && (
+                    <div className="mb-2">
+                      <div className="mb-0.5 text-caption-1 text-label-2">{t("select.window")}</div>
+                      <OverviewBar duration={duration} windowStart={ws} windowLen={windowLen} start={range[0]} end={range[1]} onWindow={setWindowStart} />
+                    </div>
+                  )}
+                  <RangeSlider
+                    windowStart={ws}
+                    windowEnd={we}
+                    duration={duration}
+                    start={range[0]}
+                    end={range[1]}
+                    maxLen={limit}
+                    current={current}
+                    sprites={sprites}
+                    spritesLoading={spritesLoading}
+                    onChange={(s, e) => setRange([s, e])}
+                    onSeek={(tt) => {
+                      player.current?.seekTo(tt);
+                      setCurrent(tt);
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {range && duration > 0 && (
-              <div className="px-5 pt-4">
-                {duration > WINDOW && (
-                  <div className="mb-2">
-                    <div className="mb-0.5 text-caption-1 text-label-2">{t("select.window")}</div>
-                    <OverviewBar duration={duration} windowStart={ws} windowLen={windowLen} start={range[0]} end={range[1]} onWindow={setWindowStart} />
-                  </div>
-                )}
-                <RangeSlider
-                  windowStart={ws}
-                  windowEnd={we}
-                  duration={duration}
-                  start={range[0]}
-                  end={range[1]}
-                  maxLen={limit}
-                  current={current}
-                  sprites={sprites}
-                  spritesLoading={spritesLoading}
-                  onChange={(s, e) => setRange([s, e])}
-                  onSeek={(tt) => {
-                    player.current?.seekTo(tt);
-                    setCurrent(tt);
-                  }}
-                />
-
-                <div className="mt-4 flex gap-2">
+              <div className="px-5 lg:px-0">
+                <div className="mt-4 flex gap-2 lg:mt-0">
                   <TimecodeField
                     label={t("select.start")}
                     value={range[0]}
@@ -330,6 +355,19 @@ export default function SelectRangeScreen() {
                         : t("select.limit", { limit: formatTimecode(limit) })}
                   </div>
                 </div>
+
+                {qualityOptions.length > 1 && chosenQuality && (
+                  <div className="mt-4">
+                    <div className="mb-1.5 px-1 text-footnote text-label-2">{t("select.quality")}</div>
+                    <SegmentedControl<number>
+                      label={t("select.quality")}
+                      value={chosenQuality}
+                      onChange={setQuality}
+                      options={qualityOptions.map((q) => ({ value: q, label: qualityLabel(q) }))}
+                    />
+                    {chosenQuality > 1080 && <p className="mt-1.5 px-1 text-caption-1 text-label-3">{t("select.qualityHint")}</p>}
+                  </div>
+                )}
 
                 {createError && (
                   <p role="alert" className="mt-3 px-1 text-footnote text-danger">

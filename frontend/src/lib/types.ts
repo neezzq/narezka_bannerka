@@ -93,7 +93,7 @@ export interface Banner {
 }
 
 export interface ExportSettings {
-  quality: "720p" | "1080p";
+  quality: "720p" | "1080p" | "1440p" | "2160p";
   fps: "source" | 30 | 60;
 }
 
@@ -209,6 +209,8 @@ export interface SourceInfo {
   player: { type: "youtube" | "twitch"; id: string } | { type: "video" };
   startHint: number;
   storyboard: Sprite[];
+  /** quality classes (short side) available for download, best first */
+  qualities?: number[];
 }
 
 export interface PreviewResult {
@@ -234,5 +236,7 @@ export interface AppConfig {
   maxClipSeconds: number;
   maxBannerMb: number;
   maxUploadMb: number;
+  defaultQuality?: number;
+  maxQuality?: number;
   languages: { code: string; name: string }[];
 }

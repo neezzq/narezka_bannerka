@@ -57,3 +57,22 @@ def test_progress_parsing():
     assert parse_progress_line(line, 40.0) == 0.25
     assert parse_progress_line(line, None) is None
     assert parse_progress_line("[youtube] Extracting URL", 40.0) is None
+
+
+def test_quality_classes():
+    from app.services.quality import quality_class
+    from app.services.ytdlp import format_sort, qualities
+
+    assert quality_class(1920, 1080) == quality_class(1080, 1920) == quality_class(1920, 804) == 1080
+    assert quality_class(3840, 2160) == 2160 and quality_class(1280, 720) == 720 and quality_class(0, 0) == 0
+    info = {"width": 1920, "height": 1080, "formats": [
+        {"vcodec": "avc1", "width": 640, "height": 360},
+        {"vcodec": "avc1", "width": 1920, "height": 1080},
+        {"vcodec": "vp9", "width": 3840, "height": 2160},
+        {"vcodec": "none", "acodec": "mp4a"},
+        {"format_note": "storyboard", "vcodec": "none", "width": 160, "height": 90},
+    ]}
+    assert qualities(info, 4320) == [2160, 1080, 360]
+    assert qualities(info, 1080) == [1080, 360]
+    assert qualities({"width": 720, "height": 1280}, 2160) == [720]  # no format list (TikTok)
+    assert format_sort(1080).startswith("res:1134,")

@@ -200,23 +200,62 @@ def short_side_scale(width: int, height: int, short: int) -> tuple[int, int]:
     return even(width * k), even(height * k)
 
 
-async def make_proxy(src: Path, dst: Path, probe_: Probe, on_progress: ProgressCb | None = None) -> None:
-    """Light H.264 proxy for preview: small, frequent keyframes for scrubbing."""
+async def make_previews(
+    src: Path,
+    probe_: Probe,
+    *,
+    proxy: Path,
+    sprite: Path,
+    original: Path | None = None,
+    quality: int = 1080,
+    start: float = 0.0,
+    duration: float | None = None,
+    on_progress: ProgressCb | None = None,
+    tile_height: int = 96,
+    max_count: int = 120,
+    columns: int = 10,
+) -> dict:
+    """One decode of ``src`` → the preview proxy and the timeline sprite, plus
+    (when ``original`` is given) the trimmed working copy for renders, its short
+    side at most ``quality``.
+
+    The proxy is light H.264 with frequent keyframes for scrubbing; decoding the
+    source once is most of the cost, so every output shares it."""
     s = get_settings()
-    w, h = short_side_scale(probe_.width, probe_.height, s.proxy_short_side)
-    args = ["-i", str(src), "-map", "0:v:0"]
-    if probe_.has_audio:
-        args += ["-map", "0:a:0"]
-    args += [
-        "-vf", f"scale={w}:{h}:flags=bicubic,format=yuv420p",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
-        "-g", "15", "-keyint_min", "15", "-sc_threshold", "0", "-profile:v", "main",
-        "-movflags", "+faststart",
-    ]
-    if probe_.has_audio:
-        args += ["-c:a", "aac", "-b:a", "96k", "-ac", "2"]
-    args += [str(dst)]
-    await run_ffmpeg(args, duration=probe_.duration, on_progress=on_progress)
+    dur = duration if duration is not None else max(0.0, probe_.duration - start)
+    count, interval = sprite_layout(dur, max_count)
+    rows = math.ceil(count / columns)
+    cols = min(columns, count)
+    if original is not None:
+        ow, oh = short_side_scale(probe_.width, probe_.height, quality)
+    else:
+        ow, oh = probe_.width, probe_.height
+    pw, ph = short_side_scale(ow, oh, s.proxy_short_side)
+    tw = even(tile_height * pw / max(1, ph))
+    thumbs = f"fps=1/{interval:.4f}:round=down,scale={tw}:{tile_height},tile={cols}x{rows}[sp]"
+    if original is not None:
+        graph = (f"[0:v]scale={ow}:{oh}:flags=bicubic,format=yuv420p,split=2[o][x];"
+                 f"[x]scale={pw}:{ph}:flags=bicubic,split=2[p][s];[s]{thumbs}")
+    else:
+        graph = f"[0:v]scale={pw}:{ph}:flags=bicubic,format=yuv420p,split=2[p][s];[s]{thumbs}"
+    args: list[str] = []
+    if start > 0:
+        args += ["-ss", f"{start:.3f}"]
+    if duration is not None:
+        args += ["-t", f"{duration:.3f}"]
+    args += ["-i", str(src), "-filter_complex", graph]
+    audio = ["-map", "0:a:0"] if probe_.has_audio else []
+    if original is not None:
+        args += ["-map", "[o]", *audio, "-c:v", "libx264", "-preset", s.source_preset, "-crf", "18",
+                 "-movflags", "+faststart"]
+        args += (["-c:a", "aac", "-b:a", "192k"] if probe_.has_audio else []) + [str(original)]
+    args += ["-map", "[p]", *audio, "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+             "-g", "15", "-keyint_min", "15", "-sc_threshold", "0", "-profile:v", "main", "-movflags", "+faststart"]
+    args += (["-c:a", "aac", "-b:a", "96k", "-ac", "2"] if probe_.has_audio else []) + [str(proxy)]
+    args += ["-map", "[sp]", "-frames:v", "1", "-q:v", "5", str(sprite)]
+    await run_ffmpeg(args, duration=dur, on_progress=on_progress)
+    return {"columns": cols, "rows": rows, "count": count, "start": 0.0, "interval": interval,
+            "tileWidth": tw, "tileHeight": tile_height}
 
 
 @dataclass

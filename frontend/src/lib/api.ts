@@ -58,7 +58,7 @@ export const api = {
     request<{ jobId: string }>("POST", "/api/source/strip", { url, start, end, count }),
 
   listProjects: () => request<{ projects: ProjectSummary[] }>("GET", "/api/projects"),
-  createProject: (body: { url?: string; uploadId?: string; start: number; end: number; title?: string }) =>
+  createProject: (body: { url?: string; uploadId?: string; start: number; end: number; title?: string; quality?: number }) =>
     request<{ project: Project; jobId: string }>("POST", "/api/projects", body),
   getProject: (id: string) => request<Project>("GET", `/api/projects/${id}`),
   saveProject: (id: string, doc: ProjectDoc, title?: string, keepalive = false) =>

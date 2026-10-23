@@ -28,7 +28,8 @@ async def test_download_and_render(env, monkeypatch):
     await init_db()
     source = make_video(env["tmp"] / "remote.mp4", seconds=6)
 
-    async def fake_download(ref, out_dir, *, start, end, max_short, on_progress=None, expected_seconds=60):
+    async def fake_download(ref, out_dir, *, start, end, quality, on_progress=None, expected_seconds=60,
+                            info_json=None):
         assert (start, end) == (1.0, 5.0) and ref.platform == "youtube"
         if on_progress:
             await on_progress(0.5)

@@ -32,8 +32,12 @@ class Settings(BaseSettings):
     asset_ttl_hours: int = 168
 
     # Media processing
-    max_source_short_side: int = 1080
+    # downloaded fragment quality = short side of the frame; the user picks one of
+    # the source's qualities up to max_quality, default_quality is preselected
+    default_quality: int = 1080
+    max_quality: int = 2160
     proxy_short_side: int = 540
+    source_preset: str = "veryfast"  # x264 preset of the working copy cut from uploads
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
     ytdlp_bin: str = "yt-dlp"

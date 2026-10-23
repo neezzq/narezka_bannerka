@@ -17,13 +17,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Aspect = Literal["9:16", "16:9", "1:1", "4:5"]
 Fit = Literal["contain", "cover"]
-Quality = Literal["720p", "1080p"]
+Quality = Literal["720p", "1080p", "1440p", "2160p"]
 Platform = Literal["youtube", "twitch", "tiktok", "upload"]
 HexColor = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{6}$")]
 Id = Annotated[str, Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
 
 ASPECT_RATIOS: dict[str, tuple[int, int]] = {"9:16": (9, 16), "16:9": (16, 9), "1:1": (1, 1), "4:5": (4, 5)}
-QUALITY_SHORT_SIDE = {"720p": 720, "1080p": 1080}
+QUALITY_SHORT_SIDE = {"720p": 720, "1080p": 1080, "1440p": 1440, "2160p": 2160}
 REFERENCE_SHORT_SIDE = 1080
 MAX_TIME = 24 * 3600
 

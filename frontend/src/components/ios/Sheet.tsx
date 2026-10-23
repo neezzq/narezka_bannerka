@@ -2,6 +2,7 @@ import { animate, AnimatePresence, motion, useMotionValue } from "framer-motion"
 import { X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { prefersReducedMotion, safeAreaInsets } from "@/lib/platform";
+import { DESKTOP, useMedia } from "@/lib/useMedia";
 import { IconButton } from "./Button";
 import { t } from "@/i18n";
 
@@ -46,9 +47,53 @@ export interface SheetProps {
  * Dragging works from the header so the content keeps native scrolling.
  */
 export function Sheet(props: SheetProps) {
+  const desktop = useMedia(DESKTOP);
   if (props.inline) return <InlinePanel {...props} />;
   return (
-    <AnimatePresence>{props.open && <FloatingSheet key="sheet" {...props} />}</AnimatePresence>
+    <AnimatePresence>
+      {props.open && (props.modal && desktop ? <CenterDialog key="dialog" {...props} /> : <FloatingSheet key="sheet" {...props} />)}
+    </AnimatePresence>
+  );
+}
+
+/** Desktop variant of a modal sheet: a dialog in the middle of the window. */
+function CenterDialog({ onClose, title, headerLeft, headerRight, children, footer, label, detents = ["medium", "large"] }: SheetProps) {
+  const reduced = prefersReducedMotion();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const tall = detents.includes("large");
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 z-40 bg-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-8">
+        <motion.section
+          role="dialog"
+          aria-modal
+          aria-label={label ?? (typeof title === "string" ? title : undefined)}
+          className={`material-thick pointer-events-auto flex w-full flex-col overflow-hidden rounded-[var(--radius-sheet)] shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${
+            tall ? "max-h-[min(860px,100%)] max-w-[600px]" : "max-h-[min(640px,100%)] max-w-[480px]"
+          }`}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38 }}
+        >
+          <SheetHeader title={title} left={headerLeft} right={headerRight} onClose={onClose} />
+          <div className="scroll-y min-h-0 flex-1 pb-3">{children}</div>
+          {footer && <div className="shrink-0">{footer}</div>}
+        </motion.section>
+      </div>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { AlertTriangle, Crop, Captions, Image as ImageIcon, Pause, Play, Redo2, RotateCcw, Scissors, Trash2, Undo2, WandSparkles, Frame } from "lucide-react";
+import { AlertTriangle, Captions, Image as ImageIcon, Keyboard, Pause, Play, Redo2, RotateCcw, Scissors, Trash2, Undo2, WandSparkles, Frame } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -19,9 +19,10 @@ import { api, ApiError } from "@/lib/api";
 import { useJob } from "@/lib/jobs";
 import { formatTimecode } from "@/lib/timecode";
 import type { Job } from "@/lib/types";
+import { DESKTOP, useMedia } from "@/lib/useMedia";
 import { useAssets } from "@/store/assets";
 import { flushSave, useEditor, type Tool } from "@/store/editor";
-import { deleteSelectedCut, restoreCuts, splitAtPlayhead } from "@/editor/actions";
+import { deleteSelectedCut, duplicateBanner, removeBanner, restoreCuts, splitAtPlayhead } from "@/editor/actions";
 import { BannersPanel } from "@/editor/panels/BannersPanel";
 import { ChromaPanel } from "@/editor/panels/ChromaPanel";
 import { ExportSheet } from "@/editor/panels/ExportSheet";
@@ -60,15 +61,115 @@ function useHeight<T extends HTMLElement>(): [React.RefObject<T>, number] {
   return [ref, h];
 }
 
-function useMedia(query: string) {
-  const [m, setM] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setM(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return m;
+/** Editor hotkeys (desktop first, harmless on phones with keyboards). */
+function onEditorKey(e: KeyboardEvent) {
+  const el = e.target as HTMLElement;
+  if (el.closest("input, textarea, select, [contenteditable], [role='slider']")) return;
+  if (document.querySelector("[aria-modal='true']")) return;
+  const st = useEditor.getState();
+  const mod = e.metaKey || e.ctrlKey;
+  const key = e.key.toLowerCase();
+  const sel = st.selection;
+  if (mod && (key === "z" || key === "y")) {
+    e.preventDefault();
+    if (e.shiftKey || key === "y") st.redo();
+    else st.undo();
+  } else if (mod && key === "d") {
+    if (sel?.kind !== "banner") return;
+    e.preventDefault();
+    duplicateBanner(sel.id);
+  } else if (mod || e.altKey) {
+    return;
+  } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    e.preventDefault();
+    const step = e.shiftKey ? 1 : 1 / (st.meta?.media?.fps || 30);
+    playback.pause();
+    playback.seek(usePlayer.getState().time + (e.key === "ArrowLeft" ? -step : step));
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+    playback.pause();
+    playback.seek(e.key === "Home" ? 0 : usePlayer.getState().duration);
+  } else if (key === "s") {
+    e.preventDefault();
+    splitAtPlayhead();
+  } else if (e.key === "Delete" || e.key === "Backspace") {
+    if (sel?.kind === "banner") removeBanner(sel.id);
+    else if (sel?.kind === "cut") deleteSelectedCut();
+    else return;
+    e.preventDefault();
+  } else if (e.key === "Escape") {
+    if (st.eyedropper) st.setEyedropper(false);
+    else if (sel) st.select(null);
+    else if (st.tool) st.setTool(null);
+  }
+}
+
+const HOTKEYS: [string, string][] = [
+  [t("keys.space"), t("keys.play")],
+  ["← →", t("keys.frame")],
+  ["Shift + ← →", t("keys.second")],
+  ["Home / End", t("keys.ends")],
+  ["S", t("keys.split")],
+  ["Delete", t("keys.delete")],
+  ["⌘/Ctrl + Z", t("keys.undo")],
+  ["⌘/Ctrl + Shift + Z", t("keys.redo")],
+  ["⌘/Ctrl + D", t("keys.duplicate")],
+  ["Esc", t("keys.escape")],
+  [t("keys.wheelBanner"), t("keys.bannerSize")],
+  [t("keys.wheel"), t("keys.scroll")],
+  [`Ctrl + ${t("keys.wheel")}`, t("keys.zoom")],
+];
+
+function DesktopHelp() {
+  return (
+    <div className="scroll-y min-h-0 flex-1 px-5 py-6">
+      <h2 className="text-title-3 font-semibold">{t("editor.toolsTitle")}</h2>
+      <p className="mt-1 text-footnote text-label-2">{t("editor.toolsHintDesktop")}</p>
+      <h3 className="mt-6 mb-2 flex items-center gap-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">
+        <Keyboard size={16} aria-hidden /> {t("keys.title")}
+      </h3>
+      <dl className="divide-y-[0.5px] divide-separator rounded-[12px] bg-surface-2">
+        {HOTKEYS.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-3 px-3 py-2">
+            <dt className="text-footnote text-label-2">{v}</dt>
+            <dd>
+              <kbd className="rounded-[6px] bg-fill-2 px-1.5 py-0.5 font-sans text-caption-1 whitespace-nowrap text-label">{k}</kbd>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function ToolRail({ active, onChange }: { active: Tool | null; onChange: (k: Tool) => void }) {
+  return (
+    <nav
+      aria-label={t("a11y.tools")}
+      aria-orientation="vertical"
+      role="tablist"
+      className="flex w-[88px] shrink-0 flex-col gap-1 border-l-[0.5px] border-separator bg-bg py-2"
+    >
+      {TOOLS.map(({ key, label, icon: Icon }) => {
+        const selected = key === active;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(key)}
+            className={`mx-1.5 flex cursor-pointer flex-col items-center gap-1 rounded-[10px] py-2.5 text-caption-2 font-medium transition-colors ${
+              selected ? "bg-accent/15 text-accent-text" : "text-label-2 hover:bg-fill-2 hover:text-label"
+            }`}
+          >
+            <Icon size={22} strokeWidth={selected ? 2 : 1.6} aria-hidden />
+            <span className="max-w-full truncate px-1">{label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
 }
 
 export default function EditorScreen() {
@@ -220,7 +321,7 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
   const saveState = useEditor((s) => s.saveState);
   const [exportOpen, setExportOpen] = useState(!!exportJob);
   const [sheetH, setSheetH] = useState(0);
-  const desktop = useMedia("(min-width: 1024px)");
+  const desktop = useMedia(DESKTOP);
   const panelTool = tool && tool !== "trim" ? tool : null;
 
   useEffect(() => {
@@ -228,17 +329,8 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
   }, [exportJob]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, textarea")) return;
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) useEditor.getState().redo();
-        else useEditor.getState().undo();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onEditorKey);
+    return () => window.removeEventListener("keydown", onEditorKey);
   }, []);
 
   const saveLabel = { saved: t("editor.saved"), dirty: t("editor.saving"), saving: t("editor.saving"), error: t("editor.saveError") }[saveState];
@@ -273,20 +365,21 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
           <Preview bottomInset={inset} />
           <div ref={stackRef} className="shrink-0">
             <Transport />
-            <Timeline />
+            <Timeline large={desktop} />
           </div>
-          <div ref={tabRef} className="relative z-[55] shrink-0">
+          <div ref={tabRef} className={`relative z-[55] shrink-0 ${desktop ? "hidden" : ""}`}>
             <TabBar items={TOOLS} active={tool} onChange={(k) => setTool(tool === k ? null : k)} />
           </div>
         </div>
+        {desktop && <ToolRail active={tool} onChange={(k) => setTool(tool === k ? null : k)} />}
         {desktop && (
-          <aside className="flex w-[400px] shrink-0 flex-col border-l-[0.5px] border-separator bg-surface">
+          <aside className="flex w-[380px] shrink-0 flex-col border-l-[0.5px] border-separator bg-surface">
             {panelTool ? (
               <Sheet inline open onClose={() => setTool(null)} title={PANEL_TITLES[panelTool]}>
                 {panel}
               </Sheet>
             ) : (
-              <EmptyState className="m-auto" icon={<Crop size={40} strokeWidth={1.4} />} title={t("editor.toolsTitle")} text={t("editor.toolsHint")} />
+              <DesktopHelp />
             )}
           </aside>
         )}

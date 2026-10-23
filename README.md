@@ -115,7 +115,8 @@ API-документация: http://localhost:8000/api/docs.
 | `MAX_ACTIVE_JOBS_PER_SESSION` | `3` | параллельные задачи на сессию |
 | `RATE_LIMIT_PER_MINUTE` | `240` | запросов к API в минуту на сессию |
 | `FILE_TTL_HOURS` / `ASSET_TTL_HOURS` | `24` / `168` | автоочистка проектов и файлов / библиотеки баннеров |
-| `MAX_SOURCE_SHORT_SIDE` / `PROXY_SHORT_SIDE` | `1080` / `540` | качество исходника / прокси для превью |
+| `DEFAULT_QUALITY` / `MAX_QUALITY` | `1080` / `2160` | качество фрагмента по умолчанию / лучшее, которое можно выбрать |
+| `PROXY_SHORT_SIDE` | `540` | прокси для превью в редакторе |
 | `WHISPER_MODEL`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE` | `small`, `cpu`, `int8` | распознавание речи |
 | `RENDER_PRESET`, `WORKER_MAX_JOBS` | `veryfast`, `2` | скорость рендера и параллелизм воркера |
 | `COOKIE_SECURE`, `X_ACCEL_REDIRECT` | `false`, `false` (в compose `true`) | HTTPS-cookie, отдача файлов nginx'ом |

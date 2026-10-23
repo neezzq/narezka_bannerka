@@ -9,6 +9,7 @@ export function NavBar({
   large,
   subtitle,
   transparent,
+  largeClassName = "",
 }: {
   title?: ReactNode;
   left?: ReactNode;
@@ -16,6 +17,8 @@ export function NavBar({
   large?: boolean;
   subtitle?: ReactNode;
   transparent?: boolean;
+  /** extra classes for the large title block (e.g. to align it with a centred layout) */
+  largeClassName?: string;
 }) {
   return (
     <header className={`relative z-30 shrink-0 pt-safe ${transparent ? "" : "material hairline-b"}`}>
@@ -28,7 +31,7 @@ export function NavBar({
         <div className="flex min-w-0 items-center justify-end gap-0.5 justify-self-end">{right}</div>
       </div>
       {large && (
-        <div className="px-4 pb-2">
+        <div className={`px-4 pb-2 ${largeClassName}`}>
           <h1 className="text-large-title font-bold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-0.5 text-subhead text-label-2">{subtitle}</p>}
         </div>

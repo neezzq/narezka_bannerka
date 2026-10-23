@@ -29,6 +29,7 @@ class CreateIn(BaseModel):
     start: float = Field(ge=0)
     end: float = Field(gt=0)
     title: str | None = Field(None, max_length=300)
+    quality: int | None = Field(None, ge=144, le=4320, description="short side of the downloaded fragment")
 
 
 class TranscribeIn(BaseModel):
@@ -78,7 +79,7 @@ async def create_project(body: CreateIn, sid: str = Depends(session_id), db: Asy
     )
     db.add(project)
     await db.commit()
-    payload.update({"start": start, "end": end})
+    payload.update({"start": start, "end": end, "quality": min(body.quality or s.default_quality, s.max_quality)})
     job = await create_job(db, session_id=sid, kind="download", project_id=project.id, payload=payload)
     return {"project": project_public(project, [job_public(job)]), "jobId": job.id}
 

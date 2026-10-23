@@ -50,6 +50,20 @@ export function deleteSelectedCut() {
   st.select(null);
 }
 
+export function duplicateBanner(id: string) {
+  const copy = uid(8);
+  useEditor.getState().update((d) => {
+    const b = d.banners.find((x) => x.id === id);
+    if (b) d.banners.push({ ...JSON.parse(JSON.stringify(b)), id: copy, x: Math.min(0.9, b.x + 0.04), y: Math.min(0.9, b.y + 0.03) });
+  });
+  useEditor.getState().select({ kind: "banner", id: copy });
+}
+
+export function removeBanner(id: string) {
+  useEditor.getState().update((d) => void (d.banners = d.banners.filter((x) => x.id !== id)));
+  useEditor.getState().select(null);
+}
+
 export function restoreCuts() {
   const st = useEditor.getState();
   const duration = st.meta!.media!.duration;

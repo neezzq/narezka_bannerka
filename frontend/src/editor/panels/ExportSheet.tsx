@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { frameSize } from "@/lib/geometry";
 import { formatBytes } from "@/lib/id";
 import { useJob } from "@/lib/jobs";
+import { EXPORT_SHORT_SIDE, exportQualities } from "@/lib/quality";
 import { formatDuration } from "@/lib/timecode";
 import { outputDuration } from "@/lib/timeline";
 import type { ExportSettings, RenderResult } from "@/lib/types";
@@ -34,7 +35,9 @@ export function ExportSheet({ open, onClose, initialJobId }: { open: boolean; on
   const [starting, setStarting] = useState(false);
   const job = useJob<RenderResult>(jobId);
   const settings = doc.export;
-  const short = settings.quality === "1080p" ? 1080 : 720;
+  const short = EXPORT_SHORT_SIDE[settings.quality];
+  const qualities = exportQualities(meta.media?.width ?? 0, meta.media?.height ?? 0);
+  if (!qualities.includes(settings.quality)) qualities.push(settings.quality);
   const { width, height } = frameSize(doc.aspect, short);
 
   useEffect(() => {
@@ -84,10 +87,7 @@ export function ExportSheet({ open, onClose, initialJobId }: { open: boolean; on
                   label={t("export.quality")}
                   value={settings.quality}
                   onChange={(quality) => setExport({ quality })}
-                  options={[
-                    { value: "720p", label: "720p" },
-                    { value: "1080p", label: "1080p" },
-                  ]}
+                  options={qualities.map((q) => ({ value: q, label: q === "2160p" ? "4K" : q }))}
                 />
               </div>
             </ListSection>

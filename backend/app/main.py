@@ -117,6 +117,8 @@ async def config() -> dict:
         "maxClipSeconds": s.max_clip_seconds,
         "maxBannerMb": s.max_banner_mb,
         "maxUploadMb": s.max_upload_mb,
+        "defaultQuality": s.default_quality,
+        "maxQuality": s.max_quality,
         "languages": [
             {"code": "auto", "name": "Автоопределение"},
             {"code": "ru", "name": "Русский"},

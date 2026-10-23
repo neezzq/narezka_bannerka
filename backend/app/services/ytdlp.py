@@ -15,6 +15,7 @@ from typing import Any
 
 from ..config import get_settings
 from .errors import UserError
+from .quality import quality_class
 from .urls import SourceRef
 
 ERROR_MAP: list[tuple[re.Pattern[str], str, str]] = [
@@ -122,6 +123,23 @@ def storyboards(info: dict[str, Any]) -> list[dict]:
     return sprites
 
 
+def qualities(info: dict[str, Any], limit: int) -> list[int]:
+    """Distinct quality classes of the video formats, best first, up to ``limit``."""
+    found = {
+        quality_class(int(f.get("width") or 0), int(f.get("height") or 0))
+        for f in info.get("formats") or []
+        if f.get("vcodec") not in (None, "none") and f.get("format_note") != "storyboard"
+    }
+    if not found - {0}:
+        found = {quality_class(int(info.get("width") or 0), int(info.get("height") or 0))}
+    return sorted((q for q in found if 0 < q <= limit), reverse=True)
+
+
+def format_sort(quality: int) -> str:
+    """yt-dlp sort for a quality class: the best format whose short side fits."""
+    return f"res:{round(quality * 1.05)},vcodec:h264,acodec:aac"
+
+
 def summarize(ref: SourceRef, info: dict[str, Any]) -> dict[str, Any]:
     duration = float(info.get("duration") or 0)
     width = int(info.get("width") or 0)
@@ -146,6 +164,7 @@ def summarize(ref: SourceRef, info: dict[str, Any]) -> dict[str, Any]:
         "player": player,
         "startHint": ref.start_hint if ref.start_hint < duration else 0,
         "storyboard": storyboards(info) if ref.platform == "youtube" else [],
+        "qualities": qualities(info, get_settings().max_quality),
     }
 
 
@@ -188,11 +207,17 @@ async def download(
     *,
     start: float | None,
     end: float | None,
-    max_short: int,
+    quality: int,
     on_progress: ProgressCb | None = None,
     expected_seconds: float = 60.0,
+    info_json: Path | None = None,
 ) -> Path:
     """Download the whole video or only ``[start, end]`` into ``out_dir/source.mp4``.
+
+    Sections are stream-copied, not re-encoded: ffmpeg seeks to the keyframe
+    before ``start`` and the MP4 edit list hides the pre-roll, so every later
+    ffmpeg read starts exactly at ``start``. ``info_json`` (the cached ``-J``
+    output) skips the second extraction, which on YouTube costs seconds.
 
     Progress comes from yt-dlp's template (whole files) or ffmpeg's ``time=`` stats
     (sections); when neither reports anything a time-based estimate keeps moving."""
@@ -200,7 +225,7 @@ async def download(
     args = [
         *_base_args(), "--newline", "--no-part", "--no-mtime",
         "-f", "bv*+ba/b",
-        "-S", f"res:{max_short},vcodec:h264,acodec:aac",
+        "-S", format_sort(quality),
         "--merge-output-format", "mp4",
         "-o", str(out_dir / "source.%(ext)s"),
         "--progress-template",
@@ -210,10 +235,10 @@ async def download(
     clip = None
     if start is not None and end is not None:
         clip = max(0.5, end - start)
-        # cutting at exact frames re-encodes the section: use a fast x264 preset
-        args += ["--download-sections", f"*{start:.3f}-{end:.3f}", "--force-keyframes-at-cuts",
-                 "--downloader-args", "ffmpeg_o:-preset veryfast -crf 18"]
-    args += ["--", ref.url]
+        args += ["--download-sections", f"*{start:.3f}-{end:.3f}"]
+    else:
+        args += ["--concurrent-fragments", "4"]
+    args += ["--load-info-json", str(info_json)] if info_json else ["--", ref.url]
     proc = await asyncio.create_subprocess_exec(
         *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )

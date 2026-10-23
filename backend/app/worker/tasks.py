@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -24,15 +25,15 @@ from ..services.assets import process_video
 from ..services.errors import UserError
 from ..services.ffmpeg import (
     FFmpegError,
-    Probe,
     grab_frames_sprite,
-    make_proxy,
+    make_previews,
     make_sprite,
     probe,
     run_ffmpeg,
     short_side_scale,
 )
 from ..services.projects import default_doc
+from ..services.quality import quality_class
 from ..services.storage import download_url, get_storage, media_url, new_id
 from ..services.urls import parse_source_url
 from .transcribe import ModelError, group_words, transcribe
@@ -79,28 +80,42 @@ async def _register(path: Path, kind: str, mime: str, session_id: str | None, na
         return f
 
 
-async def _cut_local(src: Path, dst: Path, start: float, end: float, p: Probe, rep: JobReporter) -> None:
+def _quality(pl: dict) -> int:
     s = get_settings()
-    w, h = short_side_scale(p.width, p.height, s.max_source_short_side)
-    args = ["-ss", f"{start:.3f}", "-i", str(src), "-t", f"{end - start:.3f}", "-map", "0:v:0"]
-    if p.has_audio:
-        args += ["-map", "0:a:0"]
-    args += ["-vf", f"scale={w}:{h}:flags=bicubic,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast",
-             "-crf", "18", "-movflags", "+faststart"]
-    if p.has_audio:
-        args += ["-c:a", "aac", "-b:a", "192k"]
-    args.append(str(dst))
-    await run_ffmpeg(args, duration=end - start, on_progress=rep.progress)
+    return max(144, min(int(pl.get("quality") or s.default_quality), s.max_quality))
+
+
+async def _fetch_section(ref, out_dir: Path, start: float, end: float, quality: int, rep: JobReporter) -> Path:
+    """yt-dlp section download, reusing the info cached at /resolve when possible."""
+    kw = {"start": start, "end": end, "quality": quality, "on_progress": rep.progress,
+          "expected_seconds": (end - start) * 0.6 + 15}
+    raw = await get_redis().get(info_cache_key(ref.url))
+    if raw:
+        info_json = out_dir / "info.json"
+        info_json.write_bytes(raw if isinstance(raw, bytes) else raw.encode())
+        try:
+            return await ytdlp.download(ref, out_dir, info_json=info_json, **kw)
+        except UserError as exc:
+            if exc.code != "download_failed":
+                raise
+            # stale format URLs in the cached info: extract again
+            log.info("cached info failed for %s, extracting again", ref.url)
+        finally:
+            info_json.unlink(missing_ok=True)
+    return await ytdlp.download(ref, out_dir, **kw)
 
 
 # --------------------------------------------------------------------------- download
 async def task_download(job: Job, rep: JobReporter) -> dict:
-    s = get_settings()
     storage = get_storage()
     pl = job.payload
     start, end = float(pl["start"]), float(pl["end"])
+    quality = _quality(pl)
     out_dir = storage.new_dir("projects")
     original = out_dir / "original.mp4"
+    proxy = out_dir / "proxy.mp4"
+    sprite_path = out_dir / "thumbs.jpg"
+    t0 = time.monotonic()
 
     local_src: Path | None = None
     if pl.get("uploadKey"):
@@ -108,38 +123,42 @@ async def task_download(job: Job, rep: JobReporter) -> dict:
     elif pl.get("url"):
         raw = await get_redis().get(preview_cache_key(parse_source_url(pl["url"]).url))
         if raw:
-            cached = storage.path(json.loads(raw)["key"])
-            if cached.exists():
-                local_src = cached
+            cached = json.loads(raw)
+            # the preview copy is only good enough when it has the chosen quality
+            if storage.path(cached["key"]).exists() and cached.get("quality", 0) >= quality:
+                local_src = storage.path(cached["key"])
 
     if local_src is not None:
+        # one decode: trimmed working copy + proxy + timeline sprite
+        src_probe = await probe(local_src)
         await rep.stage("cutting", 0.02)
-        rep.span(0.02, 0.7)
-        await _cut_local(local_src, original, start, end, await probe(local_src), rep)
+        rep.span(0.02, 0.95)
+        length = max(0.1, min(end, src_probe.duration) - start)
+        sprite = await make_previews(local_src, src_probe, proxy=proxy, sprite=sprite_path, original=original,
+                                     quality=quality, start=start, duration=length, on_progress=rep.progress)
+        t_fetch = 0.0
+        p = await probe(original)
     else:
+        # stream-copied section (no re-encode), then proxy + sprite in one pass
         ref = parse_source_url(pl["url"])
         await rep.stage("download", 0.01)
-        rep.span(0.01, 0.7)
-        downloaded = await ytdlp.download(ref, out_dir, start=start, end=end, max_short=s.max_source_short_side,
-                                          on_progress=rep.progress, expected_seconds=(end - start) * 2.5 + 20)
+        rep.span(0.01, 0.6)
+        downloaded = await _fetch_section(ref, out_dir, start, end, quality, rep)
         downloaded.rename(original)
+        t_fetch = time.monotonic() - t0
+        p = await probe(original)
+        if not p.has_video or p.duration <= 0:
+            raise UserError("В скачанном файле нет видео.", code="no_video")
+        await rep.stage("proxy", 0.6)
+        rep.span(0.6, 0.95)
+        sprite = await make_previews(original, p, proxy=proxy, sprite=sprite_path, on_progress=rep.progress)
 
-    p = await probe(original)
-    if not p.has_video or p.duration <= 0:
-        raise UserError("В скачанном файле нет видео.", code="no_video")
-
-    await rep.stage("proxy", 0.7)
-    rep.span(0.7, 0.94)
-    proxy = out_dir / "proxy.mp4"
-    await make_proxy(original, proxy, p, on_progress=rep.progress)
-    proxy_probe = await probe(proxy)
-
-    await rep.stage("thumbnails", 0.95)
-    sprite_path = out_dir / "thumbs.jpg"
-    sprite = await make_sprite(proxy, sprite_path, proxy_probe)
+    await rep.stage("thumbnails", 0.96)
     poster = out_dir / "poster.jpg"
     await run_ffmpeg(["-ss", f"{min(1.0, p.duration / 3):.2f}", "-i", str(proxy), "-frames:v", "1",
                       "-vf", "scale=-2:360", "-q:v", "4", str(poster)])
+    log.info("job %s: %.0fs clip %dx%d in %.1fs (fetch %.1fs)", job.id, p.duration, p.width, p.height,
+             time.monotonic() - t0, t_fetch)
 
     fp = await _register(proxy, "proxy", "video/mp4", job.session_id, permanent=True)
     fs = await _register(sprite_path, "thumbs", "image/jpeg", job.session_id, permanent=True)
@@ -206,7 +225,7 @@ async def task_preview(job: Job, rep: JobReporter) -> dict:
             return cached["result"]
     await rep.stage("download", 0.01)
     rep.span(0.01, 0.85)
-    src = await ytdlp.download(ref, out_dir, start=None, end=None, max_short=720, on_progress=rep.progress,
+    src = await ytdlp.download(ref, out_dir, start=None, end=None, quality=720, on_progress=rep.progress,
                                expected_seconds=20)
     p = await probe(src)
     if not p.has_video:
@@ -218,7 +237,9 @@ async def task_preview(job: Job, rep: JobReporter) -> dict:
     fs = await _register(sprite_path, "strip", "image/jpeg", job.session_id)
     result = {"videoUrl": media_url(fv.id), "duration": p.duration, "width": p.width, "height": p.height,
               "sprite": {"url": media_url(fs.id), **sprite}}
-    await r.set(preview_cache_key(ref.url), json.dumps({"key": storage.key(src), "result": result}),
+    await r.set(preview_cache_key(ref.url),
+                json.dumps({"key": storage.key(src), "result": result,
+                            "quality": quality_class(p.width, p.height)}),
                 ex=int(get_settings().file_ttl_hours * 3600 * 0.9))
     return result
 

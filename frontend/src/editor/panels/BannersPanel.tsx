@@ -16,14 +16,13 @@ import { useEffect, useRef } from "react";
 import { ActivityIndicator, Button, confirmDialog, EmptyState, FieldRow, ProgressBar, Slider, toast } from "@/components/ios";
 import { t } from "@/i18n";
 import { bannerPreset, frameSize, type BannerPreset } from "@/lib/geometry";
-import { uid } from "@/lib/id";
 import { formatTimecode } from "@/lib/timecode";
 import { outputDuration } from "@/lib/timeline";
 import type { Anim, Asset, Banner } from "@/lib/types";
 import { useApp } from "@/store/app";
 import { useAssets } from "@/store/assets";
 import { useEditor } from "@/store/editor";
-import { addBanner } from "../actions";
+import { addBanner, duplicateBanner, removeBanner } from "../actions";
 import { playback, usePlayer } from "../playback";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime";
@@ -277,14 +276,7 @@ function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
           variant="gray"
           size="sm"
           icon={<Copy size={14} />}
-          onClick={() => {
-            const id = uid(8);
-            update((d) => {
-              const b = d.banners.find((x) => x.id === banner.id);
-              if (b) d.banners.push({ ...JSON.parse(JSON.stringify(b)), id, x: Math.min(0.9, b.x + 0.04), y: Math.min(0.9, b.y + 0.03) });
-            });
-            useEditor.getState().select({ kind: "banner", id });
-          }}
+          onClick={() => duplicateBanner(banner.id)}
         >
           {t("banner.duplicate")}
         </Button>
@@ -321,10 +313,7 @@ function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
           full
           size="sm"
           icon={<Trash2 size={14} />}
-          onClick={() => {
-            update((d) => void (d.banners = d.banners.filter((x) => x.id !== banner.id)));
-            useEditor.getState().select(null);
-          }}
+          onClick={() => removeBanner(banner.id)}
         >
           {t("banner.remove")}
         </Button>

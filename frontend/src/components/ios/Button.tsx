@@ -6,12 +6,12 @@ type Variant = "filled" | "tinted" | "gray" | "plain" | "destructive" | "glass";
 type Size = "lg" | "md" | "sm";
 
 const variants: Record<Variant, string> = {
-  filled: "bg-accent text-on-accent disabled:bg-fill disabled:text-label-3",
-  tinted: "bg-accent/15 text-accent-text disabled:text-label-3 disabled:bg-fill-2",
-  gray: "bg-fill-2 text-label disabled:text-label-3",
-  plain: "bg-transparent text-accent-text disabled:text-label-3",
-  destructive: "bg-danger/15 text-danger disabled:text-label-3",
-  glass: "material text-label",
+  filled: "bg-accent text-on-accent enabled:hover:brightness-110 disabled:bg-fill disabled:text-label-3",
+  tinted: "bg-accent/15 text-accent-text enabled:hover:bg-accent/25 disabled:text-label-3 disabled:bg-fill-2",
+  gray: "bg-fill-2 text-label enabled:hover:bg-fill disabled:text-label-3",
+  plain: "bg-transparent text-accent-text enabled:hover:opacity-75 disabled:text-label-3",
+  destructive: "bg-danger/15 text-danger enabled:hover:bg-danger/25 disabled:text-label-3",
+  glass: "material text-label enabled:hover:brightness-110",
 };
 
 const sizes: Record<Size, string> = {
@@ -41,7 +41,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       transition={{ type: "spring", stiffness: 600, damping: 30 }}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`relative inline-flex select-none items-center justify-center rounded-full whitespace-nowrap transition-colors disabled:cursor-not-allowed [&_svg]:shrink-0 ${variants[variant]} ${sizes[size]} ${full ? "w-full" : ""} ${className}`}
+      className={`relative inline-flex cursor-pointer select-none items-center justify-center rounded-full whitespace-nowrap transition-[background-color,color,filter,opacity] disabled:cursor-not-allowed [&_svg]:shrink-0 ${variants[variant]} ${sizes[size]} ${full ? "w-full" : ""} ${className}`}
       {...rest}
     >
       {loading ? <ActivityIndicator size={18} className={variant === "filled" ? "text-on-accent" : ""} /> : icon}
@@ -63,9 +63,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   ref,
 ) {
   const toneCls = {
-    accent: "text-accent-text",
-    label: "text-label",
-    danger: "text-danger",
+    accent: "text-accent-text enabled:hover:bg-fill-2",
+    label: "text-label enabled:hover:bg-fill-2",
+    danger: "text-danger enabled:hover:bg-fill-2",
     glass: "material text-label rounded-full",
     filled: "bg-accent text-on-accent rounded-full",
   }[tone];
@@ -79,7 +79,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       whileTap={disabled ? undefined : { scale: 0.9, opacity: 0.7 }}
       transition={{ type: "spring", stiffness: 600, damping: 30 }}
       style={{ width: size, height: size }}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full disabled:opacity-30 ${toneCls} ${className}`}
+      className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:cursor-default disabled:opacity-30 ${toneCls} ${className}`}
       {...rest}
     >
       {children}

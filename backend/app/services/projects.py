@@ -6,14 +6,18 @@ from typing import Any
 
 from ..db import Asset, Project
 from ..schemas import ProjectDoc
+from .quality import quality_class
 from .storage import media_url, new_id
 
 
 def default_doc(width: int, height: int, duration: float) -> dict[str, Any]:
     vertical = height > width
+    # export in the downloaded quality when it is above 1080p
+    quality = {2160: "2160p", 1440: "1440p"}.get(quality_class(width, height), "1080p")
     doc = ProjectDoc(
         aspect="9:16" if vertical else "16:9",
         cuts=[{"id": new_id(6), "start": 0.0, "end": round(duration, 3)}] if duration > 0 else [],
+        export={"quality": quality},
     )
     return doc.model_dump(mode="json")
 

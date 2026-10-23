@@ -126,6 +126,45 @@ function Gestures({ W, H, s }: { W: number; H: number; s: number }) {
   const selection = useEditor((st) => st.selection);
   const eyedropper = useEditor((st) => st.eyedropper);
   const tool = useEditor((st) => st.tool);
+
+  // mouse wheel over the stage resizes the selected banner (pinch on touch screens)
+  useEffect(() => {
+    const el = layer.current;
+    if (!el) return;
+    let idle = 0;
+    const onWheel = (e: WheelEvent) => {
+      const st = useEditor.getState();
+      const sel = st.selection;
+      if (sel?.kind !== "banner") return;
+      e.preventDefault();
+      if (idle) clearTimeout(idle);
+      else st.beginGesture();
+      idle = window.setTimeout(() => {
+        idle = 0;
+        useEditor.getState().endGesture();
+      }, 300);
+      const f = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
+      st.update((d) => {
+        const bn = d.banners.find((x) => x.id === sel.id);
+        if (!bn) return;
+        const cx = bn.x + bn.w / 2;
+        const cy = bn.y + bn.h / 2;
+        const w = clamp(bn.w * f, 0.03, 4);
+        bn.h = (w * bn.h) / bn.w;
+        bn.w = w;
+        bn.x = cx - bn.w / 2;
+        bn.y = cy - bn.h / 2;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (idle) {
+        clearTimeout(idle);
+        useEditor.getState().endGesture();
+      }
+    };
+  }, []);
   const time = usePlayer((st) => Math.round(st.time * 10) / 10);
   const selected = selection?.kind === "banner" ? banners.find((b) => b.id === selection.id) : undefined;
 

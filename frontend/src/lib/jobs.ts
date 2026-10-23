@@ -13,14 +13,22 @@ export function watchJob(jobId: string, onUpdate: (job: Job) => void): () => voi
   let closed = false;
   let es: EventSource | null = null;
   let timer: number | undefined;
+  let safety: number | undefined;
   let failures = 0;
+  let lastKey = "";
+  const emit = (job: Job) => {
+    const key = `${job.status}|${job.stage}|${job.progress}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    onUpdate(job);
+  };
 
   const poll = async () => {
     if (closed) return;
     try {
       const job = await api.job(jobId);
       failures = 0;
-      onUpdate(job);
+      emit(job);
       if (isTerminal(job)) return;
     } catch {
       failures++;
@@ -33,7 +41,7 @@ export function watchJob(jobId: string, onUpdate: (job: Job) => void): () => voi
     es.onmessage = (e) => {
       try {
         const job = JSON.parse(e.data) as Job;
-        onUpdate(job);
+        emit(job);
         if (isTerminal(job)) {
           es?.close();
           closed = true;
@@ -48,6 +56,20 @@ export function watchJob(jobId: string, onUpdate: (job: Job) => void): () => voi
       es = null;
       if (!closed) poll();
     };
+    // safety net: some proxies/tunnels buffer SSE silently — check the status anyway
+    safety = window.setInterval(async () => {
+      if (closed) return;
+      try {
+        const job = await api.job(jobId);
+        emit(job);
+        if (isTerminal(job)) {
+          closed = true;
+          es?.close();
+        }
+      } catch {
+        /* next tick */
+      }
+    }, 4000);
   } else {
     poll();
   }
@@ -55,6 +77,7 @@ export function watchJob(jobId: string, onUpdate: (job: Job) => void): () => voi
     closed = true;
     es?.close();
     if (timer) clearTimeout(timer);
+    if (safety) clearInterval(safety);
   };
 }
 

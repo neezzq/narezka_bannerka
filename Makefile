@@ -45,8 +45,8 @@ icons:
 	cd frontend && npm run icons
 
 update-ytdlp:
-	docker compose exec -u root api pip install -U yt-dlp
-	docker compose exec -u root worker pip install -U yt-dlp
+	docker compose exec -u root api pip install -U "yt-dlp[default,deno]"
+	docker compose exec -u root worker pip install -U "yt-dlp[default,deno]"
 	docker compose restart api worker
 
 whisper-model:

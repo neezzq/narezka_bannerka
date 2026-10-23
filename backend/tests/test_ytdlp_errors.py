@@ -45,3 +45,15 @@ def test_storyboards_and_summary():
     assert s["startHint"] == 30 and s["duration"] == 120
     tik = summarize(parse_source_url("https://vm.tiktok.com/ZMabc123/"), {"duration": 15})
     assert tik["player"]["type"] == "video" and tik["storyboard"] == []
+
+
+def test_progress_parsing():
+    from app.services.ytdlp import parse_progress_line
+
+    assert parse_progress_line("BKPROG 500 1000 NA 3.2", None) == 0.5
+    assert parse_progress_line("BKPROG 500 NA 2000 3.2", None) == 0.25
+    assert parse_progress_line("BKPROG NA NA NA NA", None) is None
+    line = "frame= 300 fps= 60 q=28.0 size=  1024kB time=00:00:10.00 bitrate=838.9kbits/s speed=2.0x"
+    assert parse_progress_line(line, 40.0) == 0.25
+    assert parse_progress_line(line, None) is None
+    assert parse_progress_line("[youtube] Extracting URL", 40.0) is None

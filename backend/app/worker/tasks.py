@@ -121,7 +121,7 @@ async def task_download(job: Job, rep: JobReporter) -> dict:
         await rep.stage("download", 0.01)
         rep.span(0.01, 0.7)
         downloaded = await ytdlp.download(ref, out_dir, start=start, end=end, max_short=s.max_source_short_side,
-                                          on_progress=rep.progress, expected_seconds=(end - start) * 0.6)
+                                          on_progress=rep.progress, expected_seconds=(end - start) * 2.5 + 20)
         downloaded.rename(original)
 
     p = await probe(original)

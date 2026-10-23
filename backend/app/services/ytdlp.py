@@ -163,6 +163,23 @@ def stream_url(info: dict[str, Any], max_short: int = 360) -> str | None:
 
 ProgressCb = Callable[[float], Awaitable[None]]
 _PROG = re.compile(r"^BKPROG (\S+) (\S+) (\S+) (\S+)")
+# ffmpeg stats line (used by yt-dlp for --download-sections): "... time=00:00:12.34 ..."
+_FFTIME = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
+_LINE_SPLIT = re.compile(r"[\r\n]+")
+
+
+def parse_progress_line(line: str, clip_seconds: float | None) -> float | None:
+    """Progress 0..1 from a yt-dlp template line or an ffmpeg stats line."""
+    m = _PROG.match(line.strip())
+    if m:
+        done, total, estimate, _elapsed = (_num(g) for g in m.groups())
+        total = total or estimate
+        return done / total if total and done else None
+    m = _FFTIME.search(line)
+    if m and clip_seconds:
+        t = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+        return t / clip_seconds
+    return None
 
 
 async def download(
@@ -175,7 +192,10 @@ async def download(
     on_progress: ProgressCb | None = None,
     expected_seconds: float = 60.0,
 ) -> Path:
-    """Download the whole video or only ``[start, end]`` into ``out_dir/source.mp4``."""
+    """Download the whole video or only ``[start, end]`` into ``out_dir/source.mp4``.
+
+    Progress comes from yt-dlp's template (whole files) or ffmpeg's ``time=`` stats
+    (sections); when neither reports anything a time-based estimate keeps moving."""
     s = get_settings()
     args = [
         *_base_args(), "--newline", "--no-part", "--no-mtime",
@@ -187,42 +207,54 @@ async def download(
         "download:BKPROG %(progress.downloaded_bytes)s %(progress.total_bytes)s "
         "%(progress.total_bytes_estimate)s %(progress.elapsed)s",
     ]
+    clip = None
     if start is not None and end is not None:
-        args += ["--download-sections", f"*{start:.3f}-{end:.3f}", "--force-keyframes-at-cuts"]
+        clip = max(0.5, end - start)
+        # cutting at exact frames re-encodes the section: use a fast x264 preset
+        args += ["--download-sections", f"*{start:.3f}-{end:.3f}", "--force-keyframes-at-cuts",
+                 "--downloader-args", "ffmpeg_o:-preset veryfast -crf 18"]
     args += ["--", ref.url]
     proc = await asyncio.create_subprocess_exec(
         *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    err_chunks: list[str] = []
+    err_tail: list[str] = []
+    state = {"best": 0.0, "real_at": 0.0}
+    loop = asyncio.get_running_loop()
+    t0 = loop.time()
 
-    async def read_out() -> None:
-        assert proc.stdout
-        last = 0.0
-        async for raw in proc.stdout:
-            m = _PROG.match(raw.decode(errors="ignore").strip())
-            if not m or not on_progress:
-                continue
-            done, total, estimate, elapsed = (_num(g) for g in m.groups())
-            total = total or estimate
-            if total and done:
-                frac = done / total
-            elif elapsed:
-                frac = 1 - 1 / (1 + elapsed / max(5.0, expected_seconds))  # asymptotic estimate
-            else:
-                continue
-            frac = min(0.99, max(last, frac))
-            if frac - last > 0.01:
-                last = frac
-                await on_progress(frac)
+    async def report(frac: float, real: bool) -> None:
+        if real:
+            state["real_at"] = loop.time()
+        frac = min(0.97, frac)
+        if on_progress and frac - state["best"] > 0.01:
+            state["best"] = frac
+            await on_progress(frac)
 
-    async def read_err() -> None:
-        assert proc.stderr
-        async for raw in proc.stderr:
-            if len(err_chunks) < 400:
-                err_chunks.append(raw.decode(errors="replace"))
+    async def read(stream: asyncio.StreamReader, keep: bool) -> None:
+        buf = ""
+        while chunk := await stream.read(4096):
+            buf += chunk.decode(errors="replace")
+            *lines, buf = _LINE_SPLIT.split(buf)
+            for line in lines:
+                if keep and line.strip():
+                    err_tail.append(line)
+                    del err_tail[:-200]
+                frac = parse_progress_line(line, clip)
+                if frac is not None:
+                    await report(frac, real=True)
 
+    async def estimate() -> None:
+        # asymptotic estimate when the tools stay silent (e.g. while seeking a long VOD)
+        while True:
+            await asyncio.sleep(2)
+            if loop.time() - state["real_at"] > 6:
+                elapsed = loop.time() - t0
+                await report(1 - 1 / (1 + elapsed / max(10.0, expected_seconds)), real=False)
+
+    ticker = asyncio.create_task(estimate())
     try:
-        await asyncio.wait_for(asyncio.gather(read_out(), read_err(), proc.wait()), s.ytdlp_timeout)
+        await asyncio.wait_for(asyncio.gather(read(proc.stdout, False), read(proc.stderr, True), proc.wait()),
+                               s.ytdlp_timeout)
     except TimeoutError:
         proc.kill()
         await proc.wait()
@@ -230,8 +262,10 @@ async def download(
     except asyncio.CancelledError:
         proc.kill()
         raise
+    finally:
+        ticker.cancel()
     if proc.returncode != 0:
-        raise map_error("".join(err_chunks))
+        raise map_error("\n".join(err_tail))
     files = sorted(out_dir.glob("source.*"), key=lambda p: p.stat().st_size, reverse=True)
     files = [f for f in files if f.suffix in (".mp4", ".mkv", ".webm", ".mov")]
     if not files:

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRightToLine } from "lucide-react";
+import { AlertTriangle, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { PlatformIcon } from "@/components/PlatformIcon";
@@ -296,7 +296,7 @@ export default function SelectRangeScreen() {
                   <Button
                     variant="gray"
                     size="md"
-                    icon={<ArrowRightToLine size={18} className="rotate-180" />}
+                    icon={<ArrowLeftToLine size={18} />}
                     onClick={() => {
                       const c = player.current?.getCurrentTime() ?? 0;
                       setBoth(c, c < range[1] && range[1] - c <= limit ? range[1] : Math.min(duration, c + Math.min(limit, len || 30)));

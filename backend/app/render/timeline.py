@@ -23,6 +23,8 @@ POP_SCALE_FROM = 0.6  # "pop" appearance starts from this scale
 SLIDE_PX = 40.0  # "slide" appearance offset in reference px
 WORD_POP = 1.2  # active word scale with wordPop
 WORD_POP_DUR = 0.1
+# Lines wider than this fraction of the frame are scaled down to fit
+MAX_LINE_WIDTH = 0.92
 
 
 def output_duration(cuts: list[Cut]) -> float:
@@ -103,6 +105,14 @@ def build_pages(lines: list[Line], cuts: list[Cut], style: SubtitleStyle) -> lis
             page.end = min(page.end, nxt.start)
         page.start, page.end = round(page.start, 4), round(page.end, 4)
     return [p for p in pages if p.end > p.start]
+
+
+def fit_scale(text_w: float, style: SubtitleStyle, frame_w: float) -> float:
+    """Uniform scale (≤ 1) that keeps the page (text + box + outline) inside the frame."""
+    w = text_w + 2 * style.outlineWidth + (2 * style.box.paddingX if style.box.enabled else 0)
+    if w <= 0:
+        return 1.0
+    return min(1.0, MAX_LINE_WIDTH * frame_w / w)
 
 
 def clamp01(v: float) -> float:

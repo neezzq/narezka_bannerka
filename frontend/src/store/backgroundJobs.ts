@@ -14,6 +14,8 @@ interface Tracked {
 
 interface State {
   jobs: Record<string, Job<RenderResult>>;
+  /** job currently shown in an open export sheet (no toast for it) */
+  viewing: string | null;
   tracked: Tracked[];
   track: (t: Tracked) => void;
   forget: (jobId: string) => void;
@@ -40,6 +42,7 @@ const watchers = new Map<string, () => void>();
 
 export const useRenderJobs = create<State>((set, get) => ({
   jobs: {},
+  viewing: null,
   tracked: load(),
   track: (t) => {
     const list = [...get().tracked.filter((x) => x.jobId !== t.jobId), t].slice(-10);

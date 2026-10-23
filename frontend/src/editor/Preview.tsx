@@ -54,6 +54,7 @@ export function Preview({ bottomInset = 0 }: { bottomInset?: number }) {
   return (
     <div ref={container} className="relative flex min-h-0 flex-1 items-start justify-center overflow-hidden pt-2" style={{ paddingBottom: bottomInset }}>
       <div
+        data-testid="stage"
         className="relative overflow-hidden rounded-[4px] shadow-[0_0_0_0.5px_var(--color-separator)]"
         style={{ width: W * scale, height: H * scale, background, marginTop: Math.max(0, (availH - H * scale) / 2) }}
       >

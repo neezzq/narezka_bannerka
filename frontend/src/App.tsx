@@ -6,7 +6,7 @@ import { ActivityIndicator, Button, DialogHost, EmptyState, toast, ToastHost } f
 import { t } from "@/i18n";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { useApp } from "@/store/app";
-import { resumeRenderJobs } from "@/store/backgroundJobs";
+import { resumeRenderJobs, useRenderJobs } from "@/store/backgroundJobs";
 
 const SelectRangeScreen = lazy(() => import("@/screens/SelectRangeScreen"));
 const EditorScreen = lazy(() => import("@/screens/EditorScreen"));
@@ -32,6 +32,7 @@ function BackgroundJobs() {
   const nav = useNavigate();
   useEffect(() => {
     resumeRenderJobs((tracked, job) => {
+      if (useRenderJobs.getState().viewing === job.id) return;
       if (job.status === "done") {
         toast({
           title: t("export.ready"),

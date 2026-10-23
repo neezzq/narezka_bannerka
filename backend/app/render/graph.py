@@ -69,13 +69,13 @@ def spill_kind(color: str) -> str:
 def chroma_filters(c: ChromaSettings) -> list[str]:
     """ffmpeg equivalent of the WebGL chroma shader (frontend/src/editor/chroma/shader.ts).
 
-    chromakey compares U/V with BT.601 limited-range maths, so the frame is
-    converted to RGB and then explicitly to yuv444p BT.601 first (the shader does
-    the same conversion on RGB texels)."""
+    chromakey computes the key colour's U/V with full-range BT.601 coefficients,
+    so the frame is converted to RGB and then explicitly to full-range yuv444p
+    BT.601 — pixel and key U/V use the same maths (the shader does too)."""
     key = c.color.lstrip("#").upper()
     out = [
         "format=gbrap",
-        "scale=out_color_matrix=bt601:out_range=tv",
+        "scale=out_color_matrix=bt601:out_range=pc",
         "format=yuva444p",
         f"chromakey=color=0x{key}:similarity={_n(max(0.00001, c.similarity))}:blend={_n(c.blend)}",
         "format=gbrap",

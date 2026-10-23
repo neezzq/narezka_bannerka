@@ -2,8 +2,10 @@
 // result matches: same font files, em size, outline (stroke 2×, round joins, under
 // the fill), hard shadow (union of fill+outline shifted), centred line box with
 // libass metrics (line height = em·(winAscent+winDescent)/upm, baseline at winAscent).
+// Like libass, \fscx/\fscy (pop animation, auto-fit) scale glyphs and the box
+// drawing but NOT the outline width or the shadow offset.
 import type { FontWeight } from "@/lib/fonts";
-import { activeWord, lineAnimState, type Page, wordScale } from "@/lib/timeline";
+import { activeWord, fitScale, lineAnimState, type Page, wordScale } from "@/lib/timeline";
 import type { SubtitleStyle } from "@/lib/types";
 
 export interface SubBox {
@@ -71,6 +73,10 @@ export function drawSubtitles(
   const base = style.fontSize;
   const upm = face.unitsPerEm;
   const anim = lineAnimState(style, page.start, t);
+  ctx.font = font(face, base);
+  const fullW = ctx.measureText(page.text).width;
+  const fit = fitScale(fullW, style, frameW);
+  const lineScale = anim.scale * fit;
   const active = style.karaoke || style.wordPop ? activeWord(page, t) : -1;
 
   // ---- layout (unscaled line, origin at the anchor)
@@ -102,7 +108,7 @@ export function drawSubtitles(
     c.miterLimit = 2;
     c.textBaseline = "alphabetic";
     if (style.outlineWidth > 0) {
-      c.lineWidth = style.outlineWidth * 2;
+      c.lineWidth = (style.outlineWidth * 2) / lineScale;
       c.strokeStyle = strokeColor;
       page!.words.forEach((w, i) => {
         c.font = font(face, ems[i]);
@@ -118,7 +124,7 @@ export function drawSubtitles(
 
   const applyLineTransform = (c: CanvasRenderingContext2D) => {
     c.translate(cx, cy);
-    c.scale(anim.scale, anim.scale);
+    c.scale(lineScale, lineScale);
   };
 
   ctx.save();
@@ -126,9 +132,7 @@ export function drawSubtitles(
   if (style.box.enabled) {
     ctx.save();
     applyLineTransform(ctx);
-    ctx.font = font(face, base);
-    const tw = ctx.measureText(page.text).width;
-    const bw = tw + 2 * style.box.paddingX;
+    const bw = fullW + 2 * style.box.paddingX;
     const bh = (base * (face.ascent + face.descent)) / upm + 2 * style.box.paddingY;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = hexA(style.box.color, style.box.opacity);
@@ -162,6 +166,6 @@ export function drawSubtitles(
   paintText(ctx, (i) => (style.karaoke && i === active ? style.highlightColor : style.color), style.outlineColor);
   ctx.restore();
 
-  const s = anim.scale;
+  const s = lineScale;
   return { x: cx - (total / 2) * s, y: cy - (lineH / 2) * s, w: total * s, h: lineH * s };
 }

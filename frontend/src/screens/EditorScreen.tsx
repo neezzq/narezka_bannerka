@@ -323,40 +323,35 @@ function Transport() {
   const tool = useEditor((s) => s.tool);
   const selection = useEditor((s) => s.selection);
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 px-2">
-      <IconButton label={playing ? t("editor.pause") : t("editor.play")} tone="label" onClick={() => playback.toggle()}>
-        {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
-      </IconButton>
-      <span className="text-footnote tabular-nums">
-        {formatTimecode(time, true)} <span className="text-label-3">/ {formatTimecode(duration, true)}</span>
-      </span>
-      <span className="flex-1" />
-      {tool !== "trim" && (
-        <>
-          <IconButton label={t("editor.undo")} disabled={!canUndo} onClick={() => useEditor.getState().undo()}>
-            <Undo2 size={21} />
-          </IconButton>
-          <IconButton label={t("editor.redo")} disabled={!canRedo} onClick={() => useEditor.getState().redo()}>
-            <Redo2 size={21} />
-          </IconButton>
-        </>
-      )}
+    <>
+      <div className="flex h-11 shrink-0 items-center gap-1 px-2">
+        <IconButton label={playing ? t("editor.pause") : t("editor.play")} tone="label" onClick={() => playback.toggle()}>
+          {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+        </IconButton>
+        <span className="whitespace-nowrap text-footnote tabular-nums">
+          {formatTimecode(time, true)} <span className="text-label-3">/ {formatTimecode(duration, true)}</span>
+        </span>
+        <span className="flex-1" />
+        <IconButton label={t("editor.undo")} disabled={!canUndo} onClick={() => useEditor.getState().undo()}>
+          <Undo2 size={21} />
+        </IconButton>
+        <IconButton label={t("editor.redo")} disabled={!canRedo} onClick={() => useEditor.getState().redo()}>
+          <Redo2 size={21} />
+        </IconButton>
+      </div>
       {tool === "trim" && (
-        <>
+        <div className="flex h-11 shrink-0 items-center justify-center gap-2 px-3" role="toolbar" aria-label={t("editor.tools.trim")}>
           <Button variant="gray" size="sm" icon={<Scissors size={15} />} onClick={splitAtPlayhead}>
             {t("trim.split")}
           </Button>
           <Button variant="destructive" size="sm" icon={<Trash2 size={15} />} disabled={selection?.kind !== "cut"} onClick={deleteSelectedCut}>
-            {t("common.delete")}
+            {t("trim.delete")}
           </Button>
-          <IconButton label={t("editor.undo")} disabled={!canUndo} onClick={() => useEditor.getState().undo()}>
-            <Undo2 size={21} />
-          </IconButton>
-          <IconButton label={t("trim.restore")} onClick={restoreCuts}>
-            <RotateCcw size={19} />
-          </IconButton>
-        </>
+          <Button variant="plain" size="sm" icon={<RotateCcw size={15} />} onClick={restoreCuts}>
+            {t("trim.restore")}
+          </Button>
+        </div>
       )}
-    </div>
+    </>
   );
 }

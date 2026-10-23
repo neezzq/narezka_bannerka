@@ -27,6 +27,13 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   });
 }
 
+if (import.meta.env.DEV) {
+  // test hook for automated UI checks (scripts/parity): not included in production builds
+  Promise.all([import("./editor/playback"), import("./store/editor")]).then(([pb, ed]) => {
+    (window as any).__bk = { playback: pb.playback, usePlayer: pb.usePlayer, useEditor: ed.useEditor };
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

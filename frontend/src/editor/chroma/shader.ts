@@ -1,7 +1,7 @@
 // WebGL chroma key — same maths as ffmpeg `chromakey` + `despill`
 // (backend/app/render/graph.py: chroma_filters):
-//  * U/V of the pixel and of the key colour with BT.601 limited-range coefficients
-//    (ffmpeg RGB_TO_U_CCIR / RGB_TO_V_CCIR), 0..255 scale;
+//  * U/V of the pixel and of the key colour with full-range BT.601 coefficients
+//    (ffmpeg vf_chromakey RGB_TO_U / RGB_TO_V, 10-bit fixed point), 0..255 scale;
 //  * diff = mean over the 3×3 neighbourhood of sqrt((du²+dv²) / (255²·2));
 //  * alpha = clamp((diff − similarity) / blend) (hard threshold if blend ≈ 0);
 //  * despill (mix 0.5, expand 0): spill = max(g − (r+b)/2, 0); g −= amount·spill.
@@ -28,10 +28,9 @@ varying vec2 v_uv;
 
 vec2 uv255(vec3 c) {
   vec3 p = c * 255.0;
-  float k = 224.0 / 255.0;
   return vec2(
-    128.0 + k * (-0.168736 * p.r - 0.331264 * p.g + 0.5 * p.b),
-    128.0 + k * (0.5 * p.r - 0.418688 * p.g - 0.081312 * p.b)
+    128.0 + (-0.168736 * p.r - 0.331264 * p.g + 0.5 * p.b),
+    128.0 + (0.5 * p.r - 0.418688 * p.g - 0.081312 * p.b)
   );
 }
 
@@ -61,16 +60,17 @@ void main() {
   gl_FragColor = vec4(col * a, a);
 }`;
 
-/** U/V (0..255, rounded) of a hex colour — matches ffmpeg's integer key. */
+const FIX = (x: number) => Math.round(x * 1024);
+
+/** U/V of a hex colour — the exact integer maths of ffmpeg's vf_chromakey. */
 export function keyUV(hex: string): [number, number] {
   const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
-  const k = 224 / 255;
-  const u = 128 + k * (-0.168736 * r - 0.331264 * g + 0.5 * b);
-  const v = 128 + k * (0.5 * r - 0.418688 * g - 0.081312 * b);
-  return [Math.round(u), Math.round(v)];
+  const u = ((-FIX(0.16874) * r - FIX(0.33126) * g + FIX(0.5) * b + 511) >> 10) + 128;
+  const v = ((FIX(0.5) * r - FIX(0.41869) * g - FIX(0.08131) * b + 511) >> 10) + 128;
+  return [u, v];
 }
 
 export function isBlueKey(hex: string): boolean {

@@ -173,7 +173,7 @@ export function HomeScreen() {
                     aria-invalid={!!error}
                     className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-label-3"
                   />
-                  {text ? (
+                  {text && (
                     <button
                       type="button"
                       aria-label="Очистить"
@@ -187,15 +187,6 @@ export function HomeScreen() {
                       <span className="flex size-[18px] items-center justify-center rounded-full bg-label-3">
                         <X size={12} strokeWidth={3} className="text-bg" />
                       </span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={paste}
-                      aria-label={t("home.paste")}
-                      className="-mr-1 flex h-8 shrink-0 items-center gap-1 rounded-full bg-accent/15 px-3 text-footnote font-semibold text-accent-text"
-                    >
-                      <ClipboardPaste size={14} aria-hidden /> Вставить
                     </button>
                   )}
                 </label>

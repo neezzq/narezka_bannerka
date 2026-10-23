@@ -49,7 +49,7 @@ export const SUBTITLE_PRESETS: { id: string; style: SubtitleStyle }[] = [
       preset: "tiktok",
       fontFamily: "montserrat",
       fontWeight: 900,
-      fontSize: 84,
+      fontSize: 80,
       highlightColor: "#FFE600",
       outlineWidth: 8,
       position: { preset: "custom", x: 0.5, y: 0.64 },
@@ -171,9 +171,12 @@ export function editLineText(line: Line, text: string): Line {
   return { ...line, words };
 }
 
-/** Number of whole words before the caret position in the line text. */
+/** Number of whole words before the caret (a caret inside a word splits before it). */
 export function wordIndexAtCaret(text: string, caret: number): number {
-  return text.slice(0, caret).split(/\s+/).filter(Boolean).length;
+  const before = text.slice(0, caret);
+  const count = before.split(/\s+/).filter(Boolean).length;
+  const insideWord = caret < text.length && !/\s/.test(text[caret]) && before.length > 0 && !/\s$/.test(before);
+  return insideWord ? count - 1 : count;
 }
 
 export function splitLine(lines: Line[], lineId: string, wordIndex: number): Line[] {

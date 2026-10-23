@@ -63,8 +63,9 @@ def rounded_rect(w: float, h: float, r: float) -> str:
     )
 
 
-def _anim_tags(style: SubtitleStyle, page_start: float, seg_start: float, x: float, y: float) -> str:
-    """Line appearance animation, continued from the slice start (exact for linear ramps)."""
+def _anim_tags(style: SubtitleStyle, page_start: float, seg_start: float, x: float, y: float, fit: float = 1.0) -> str:
+    """Line appearance animation, continued from the slice start (exact for linear ramps).
+    ``fit`` is the static auto-fit scale (see timeline.fit_scale)."""
     alpha, scale, dy = tl.line_anim_state(style, page_start, seg_start)
     remaining = max(0.0, page_start + tl.LINE_ANIM - seg_start)
     ms = int(round(remaining * 1000))
@@ -76,8 +77,11 @@ def _anim_tags(style: SubtitleStyle, page_start: float, seg_start: float, x: flo
     if style.animation != "none" and ms > 0:
         a1 = round((1 - alpha) * 255)
         tags.append(f"\\fade({a1},0,0,0,{ms},{ms},{ms})")
-        if style.animation == "pop":
-            tags.append(f"\\fscx{_f(scale * 100)}\\fscy{_f(scale * 100)}\\t(0,{ms},\\fscx100\\fscy100)")
+    if style.animation == "pop" and ms > 0:
+        s0, s1 = _f(scale * fit * 100), _f(fit * 100)
+        tags.append(f"\\fscx{s0}\\fscy{s0}\\t(0,{ms},\\fscx{s1}\\fscy{s1})")
+    elif fit < 0.9999:
+        tags.append(f"\\fscx{_f(fit * 100)}\\fscy{_f(fit * 100)}")
     return "".join(tags)
 
 
@@ -129,11 +133,12 @@ def build_ass(
     color = ass_color(style.color)
     hl = ass_color(style.highlightColor)
     for page in tl.build_pages(lines, cuts, style):
+        text_w = text_width(face, page.text, style.fontSize)
+        fit = tl.fit_scale(text_w, style, width)
         if style.box.enabled:
-            text_w = text_width(face, page.text, style.fontSize)
             bw = text_w + 2 * style.box.paddingX
             bh = face.line_height(style.fontSize) + 2 * style.box.paddingY
-            tags = _anim_tags(style, page.start, page.start, x, y)
+            tags = _anim_tags(style, page.start, page.start, x, y, fit)
             events.append(
                 f"Dialogue: 0,{ass_time(page.start)},{ass_time(page.end)},Box,,0,0,0,,"
                 f"{{\\an5{tags}\\bord0\\shad0\\1c{ass_color(style.box.color)}\\1a{ass_alpha(style.box.opacity)}\\p1}}"
@@ -159,7 +164,7 @@ def build_ass(
                     parts.append(word)
                 if i < len(page.words) - 1:
                     parts.append(" ")
-            tags = _anim_tags(style, page.start, seg_start, x, y)
+            tags = _anim_tags(style, page.start, seg_start, x, y, fit)
             events.append(
                 f"Dialogue: 1,{ass_time(seg_start)},{ass_time(seg_end)},Text,,0,0,0,,"
                 f"{{\\an5\\q2{tags}}}{''.join(parts)}"

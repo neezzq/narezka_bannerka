@@ -41,6 +41,12 @@ export function ExportSheet({ open, onClose, initialJobId }: { open: boolean; on
     if (initialJobId) setJobId(initialJobId);
   }, [initialJobId]);
 
+  useEffect(() => {
+    if (!open || !jobId) return;
+    useRenderJobs.setState({ viewing: jobId });
+    return () => useRenderJobs.setState({ viewing: null });
+  }, [open, jobId]);
+
   // pick up a render that is still running for this project
   useEffect(() => {
     if (jobId || !open) return;

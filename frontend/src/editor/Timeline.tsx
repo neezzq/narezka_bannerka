@@ -283,6 +283,9 @@ export function Timeline() {
 
           {/* subtitles */}
           <div className="relative mt-1.5" style={{ width: contentW, height: SUB_H }} aria-label={t("editor.tracks.subtitles")}>
+            {lineBlocks.length === 0 && (
+              <EmptyTrack label={`+ ${t("editor.tracks.subtitles")}`} width={contentW} onClick={() => useEditor.getState().setTool("subtitles")} />
+            )}
             {lineBlocks.map((l) => {
               const sel = selection?.kind === "line" && selection.id === l.id;
               return (
@@ -307,6 +310,9 @@ export function Timeline() {
 
           {/* banners */}
           <div className="relative mt-1.5 mb-2" style={{ width: contentW, height: laneCount * (LANE_H + 3) }} aria-label={t("editor.tracks.banners")}>
+            {banners.length === 0 && (
+              <EmptyTrack label={`+ ${t("editor.tools.banner")}`} width={contentW} onClick={() => useEditor.getState().setTool("banner")} />
+            )}
             {banners.map((b) => {
               const lane = Math.min(2, laneMap.get(b.id) ?? 0);
               const sel = selection?.kind === "banner" && selection.id === b.id;
@@ -424,6 +430,19 @@ function Clip({
         </>
       )}
     </div>
+  );
+}
+
+function EmptyTrack({ label, width, onClick }: { label: string; width: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute inset-y-0 left-0 rounded-[6px] border border-dashed border-label-4 px-2 text-left text-caption-2 font-medium text-label-3"
+      style={{ width: Math.max(80, width - 2) }}
+    >
+      {label}
+    </button>
   );
 }
 

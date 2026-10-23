@@ -1,0 +1,7 @@
+[
+  {"name": "outline", "style": {"fontFamily": "montserrat", "fontWeight": 900, "fontSize": 72, "color": "#FFFFFF", "outlineColor": "#FF0000", "outlineWidth": 8, "animation": "none", "karaoke": false, "wordsPerScreen": 3, "position": {"preset": "custom", "x": 0.5, "y": 0.5}}},
+  {"name": "box", "style": {"fontFamily": "manrope", "fontWeight": 800, "fontSize": 56, "color": "#FFFFFF", "outlineWidth": 0, "box": {"enabled": true, "color": "#A6E22E", "opacity": 1, "radius": 18, "paddingX": 26, "paddingY": 12}, "animation": "none", "karaoke": false, "wordsPerScreen": 3, "position": {"preset": "custom", "x": 0.5, "y": 0.3}}},
+  {"name": "shadow", "style": {"fontFamily": "inter", "fontWeight": 400, "fontSize": 64, "color": "#FFFFFF", "outlineWidth": 0, "shadowColor": "#FF0000", "shadowOpacity": 1, "shadowOffset": 6, "animation": "none", "karaoke": false, "wordsPerScreen": 3, "position": {"preset": "custom", "x": 0.4, "y": 0.75}}},
+  {"name": "fit", "style": {"fontFamily": "unbounded", "fontWeight": 900, "fontSize": 110, "color": "#FFFFFF", "outlineWidth": 5, "outlineColor": "#0000FF", "uppercase": true, "animation": "none", "karaoke": true, "highlightColor": "#FFE600", "wordsPerScreen": 3, "position": {"preset": "custom", "x": 0.5, "y": 0.5}}},
+  {"name": "oswald", "style": {"fontFamily": "oswald", "fontWeight": 700, "fontSize": 90, "color": "#FFFFFF", "outlineWidth": 3, "outlineColor": "#00FF00", "animation": "none", "karaoke": false, "wordsPerScreen": 3, "position": {"preset": "custom", "x": 0.5, "y": 0.85}}}
+]

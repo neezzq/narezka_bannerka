@@ -9,6 +9,8 @@ export const POP_SCALE_FROM = 0.6;
 export const SLIDE_PX = 40;
 export const WORD_POP = 1.2;
 export const WORD_POP_DUR = 0.1;
+/** Lines wider than this fraction of the frame are scaled down to fit. */
+export const MAX_LINE_WIDTH = 0.92;
 
 const r4 = (v: number) => Math.round(v * 10000) / 10000;
 
@@ -124,6 +126,12 @@ export function buildPages(
 }
 
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Uniform scale (≤ 1) keeping the page (text + box + outline) inside the frame. */
+export function fitScale(textW: number, style: SubtitleStyle, frameW: number): number {
+  const w = textW + 2 * style.outlineWidth + (style.box.enabled ? 2 * style.box.paddingX : 0);
+  return w > 0 ? Math.min(1, (MAX_LINE_WIDTH * frameW) / w) : 1;
+}
 
 export function lineAnimState(style: SubtitleStyle, pageStart: number, t: number) {
   if (style.animation === "none") return { alpha: 1, scale: 1, dy: 0 };

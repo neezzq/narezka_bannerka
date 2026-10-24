@@ -137,6 +137,28 @@ class Subtitles(Model):
 Anim = Literal["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down", "scale"]
 
 
+class TextSpec(Model):
+    """A text banner: the browser draws it into the banner's PNG, the server only keeps
+    the spec so the text stays editable (the render uses the PNG like any banner)."""
+
+    content: str = Field("", max_length=1000)
+    preset: str = Field("classic", max_length=40)
+    font: str = Field("montserrat", max_length=40, pattern=r"^[a-z0-9-]+$")
+    weight: int = Field(900, ge=100, le=900)
+    color: HexColor = "#FFFFFF"
+    align: Literal["left", "center", "right"] = "center"
+    outline: float = Field(0.08, ge=0, le=0.3)  # stroke width, in font sizes
+    outlineColor: HexColor = "#000000"
+    shadow: bool = False
+    box: bool = False
+    boxColor: HexColor = "#000000"
+    boxOpacity: float = Field(0.6, ge=0, le=1)
+    uppercase: bool = False
+    # PNG metrics: font px it was drawn with and its height, to keep the size on re-render
+    renderFont: float = Field(160, gt=0, le=2000)
+    renderHeight: float = Field(200, gt=0, le=20000)
+
+
 class Banner(Model):
     id: Id
     assetId: Id
@@ -152,6 +174,7 @@ class Banner(Model):
     animOut: Anim = "fade"
     animDuration: float = Field(0.4, ge=0.05, le=3)
     chroma: ChromaSettings | None = None
+    text: TextSpec | None = None
 
     @model_validator(mode="after")
     def _order(self) -> Banner:

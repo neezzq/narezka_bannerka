@@ -18,6 +18,10 @@ interface AssetsState {
   upload: (file: File) => Promise<Asset>;
   remove: (id: string) => Promise<void>;
   byId: (id: string) => Asset | undefined;
+  /** show an asset that only exists in this browser yet (blob URL) */
+  addLocal: (asset: Asset) => void;
+  /** upload without a progress tile in the library (text images) */
+  uploadQuiet: (file: File) => Promise<Asset>;
 }
 
 export const useAssets = create<AssetsState>((set, get) => ({
@@ -56,4 +60,14 @@ export const useAssets = create<AssetsState>((set, get) => ({
     set((s) => ({ assets: s.assets.filter((a) => a.id !== id) }));
   },
   byId: (id) => get().assets.find((a) => a.id === id),
+  addLocal: (asset) => set((s) => ({ assets: [asset, ...s.assets] })),
+  uploadQuiet: async (file) => {
+    const { asset } = await uploadAsset(file).promise;
+    set((s) => ({ assets: [asset, ...s.assets.filter((a) => a.id !== asset.id)] }));
+    return asset;
+  },
 }));
+
+/** Text banner images live in the asset store but not in the banner library. */
+export const TEXT_ASSET_NAME = "bannerka-text.png";
+export const isTextAsset = (a: Pick<Asset, "name">) => a.name === TEXT_ASSET_NAME;

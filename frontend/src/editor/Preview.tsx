@@ -406,7 +406,9 @@ function Gestures({ W, H, s }: { W: number; H: number; s: number }) {
       // tap
       if (gs.target.kind === "banner") {
         st.select({ kind: "banner", id: gs.target.id });
-        if (st.tool !== "banner" && st.tool !== "chroma") st.setTool("banner");
+        const id = gs.target.id;
+        const want = st.doc!.banners.find((b) => b.id === id)?.text ? "text" : "banner";
+        if (st.tool !== want && st.tool !== "chroma") st.setTool(want);
       } else if (gs.target.kind === "subs") {
         if (st.tool !== "subtitles") st.setTool("subtitles");
       } else if (st.selection?.kind === "banner") {

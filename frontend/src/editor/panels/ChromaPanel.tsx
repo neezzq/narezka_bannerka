@@ -18,7 +18,7 @@ const KEYS = [
 ];
 
 export function ChromaPanel() {
-  const banners = useEditor((s) => s.doc!.banners);
+  const banners = useEditor((s) => s.doc!.banners).filter((b) => !b.text);
   const videoChroma = useEditor((s) => s.doc!.videoChroma);
   const target = useEditor((s) => s.chromaTarget);
   const eyedropper = useEditor((s) => s.eyedropper);

@@ -104,6 +104,18 @@ def test_asset_upload_rejects_fake_types(client):
     assert r.status_code == 415 and r.json()["error"]["code"] == "bad_type"
 
 
+def test_text_banner_spec_is_kept(client):
+    pid = client.post("/api/projects", json={"url": "https://youtu.be/dQw4w9WgXcQ", "start": 0, "end": 5}).json()["project"]["id"]
+    text = {"content": "Скидка 50%\nсегодня", "preset": "plate", "font": "montserrat", "weight": 900, "box": True,
+            "boxColor": "#FFFFFF", "renderFont": 152, "renderHeight": 410}
+    doc = {"aspect": "9:16", "cuts": [{"id": "c", "start": 0, "end": 5}],
+           "banners": [{"id": "t1", "assetId": "local-abc123", "x": 0.2, "y": 0.4, "w": 0.6, "h": 0.1,
+                        "start": 0, "end": 3, "text": text}]}
+    assert client.patch(f"/api/projects/{pid}", json={"doc": doc}).status_code == 200
+    saved = client.get(f"/api/projects/{pid}").json()["banners"][0]["text"]
+    assert saved["content"] == "Скидка 50%\nсегодня" and saved["box"] is True and saved["renderHeight"] == 410
+
+
 def test_raw_body_upload_streams_into_storage(client, env, monkeypatch):
     # the app sends files as the raw request body: no multipart spooling
     name = "%D0%91%D0%B0%D0%BD%D0%BD%D0%B5%D1%80.png"  # "Баннер.png", URL-encoded

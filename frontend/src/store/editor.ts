@@ -6,7 +6,7 @@ import type { Project, ProjectDoc, ProjectMeta } from "@/lib/types";
 const HISTORY_LIMIT = 100;
 const SAVE_DEBOUNCE = 800;
 
-export type Tool = "trim" | "subtitles" | "banner" | "chroma" | "format";
+export type Tool = "trim" | "subtitles" | "banner" | "text" | "chroma" | "format";
 export type SaveState = "saved" | "dirty" | "saving" | "error";
 export type Selection = { kind: "cut" | "banner" | "line"; id: string } | null;
 
@@ -48,6 +48,9 @@ interface EditorState {
   select: (s: Selection) => void;
   setEyedropper: (v: boolean) => void;
   setChromaTarget: (id: string) => void;
+  /** Point banners from one asset to another everywhere, undo history included
+   * (a text banner's local image is replaced by the uploaded one). */
+  remapAsset: (from: string, to: string) => void;
   reset: () => void;
 }
 
@@ -109,6 +112,14 @@ export const useEditor = create<EditorState>((set, get) => ({
   select: (selection) => set({ selection }),
   setEyedropper: (eyedropper) => set({ eyedropper }),
   setChromaTarget: (chromaTarget) => set({ chromaTarget }),
+  remapAsset: (from, to) => {
+    const map = (d: ProjectDoc | null) =>
+      d && d.banners.some((b) => b.assetId === from)
+        ? { ...d, banners: d.banners.map((b) => (b.assetId === from ? { ...b, assetId: to } : b)) }
+        : d;
+    const { doc, past, future, gestureBase } = get();
+    set({ doc: map(doc), past: past.map((d) => map(d)!), future: future.map((d) => map(d)!), gestureBase: map(gestureBase) });
+  },
   reset: () => {
     cancelSave();
     set({ meta: null, doc: null, past: [], future: [], gestureBase: null, saveState: "saved", tool: null, selection: null, eyedropper: false });

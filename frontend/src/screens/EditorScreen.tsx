@@ -1,4 +1,4 @@
-import { AlertTriangle, Captions, Image as ImageIcon, Keyboard, Pause, Play, Redo2, RotateCcw, Scissors, Trash2, Undo2, WandSparkles, Frame } from "lucide-react";
+import { AlertTriangle, Captions, Image as ImageIcon, Keyboard, Pause, Play, Redo2, RotateCcw, Scissors, Trash2, Type, Undo2, WandSparkles, Frame } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -29,6 +29,7 @@ import { ChromaPanel } from "@/editor/panels/ChromaPanel";
 import { ExportSheet } from "@/editor/panels/ExportSheet";
 import { FormatPanel } from "@/editor/panels/FormatPanel";
 import { SubtitlesPanel, useTranscribe } from "@/editor/panels/SubtitlesPanel";
+import { TextPanel } from "@/editor/panels/TextPanel";
 import { playback, usePlayer } from "@/editor/playback";
 import { Preview } from "@/editor/Preview";
 import { Timeline } from "@/editor/Timeline";
@@ -37,6 +38,7 @@ const TOOLS: TabItem<Tool>[] = [
   { key: "trim", label: t("editor.tools.trim"), icon: Scissors },
   { key: "subtitles", label: t("editor.tools.subtitles"), icon: Captions },
   { key: "banner", label: t("editor.tools.banner"), icon: ImageIcon },
+  { key: "text", label: t("editor.tools.text"), icon: Type },
   { key: "chroma", label: t("editor.tools.chroma"), icon: WandSparkles },
   { key: "format", label: t("editor.tools.format"), icon: Frame },
 ];
@@ -44,6 +46,7 @@ const TOOLS: TabItem<Tool>[] = [
 const PANEL_TITLES: Record<Exclude<Tool, "trim">, string> = {
   subtitles: t("subs.title"),
   banner: t("banner.title"),
+  text: t("text.title"),
   chroma: t("chroma.title"),
   format: t("format.title"),
 };
@@ -346,6 +349,7 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
       {panelTool === "format" && <FormatPanel />}
       {panelTool === "subtitles" && <SubtitlesPanel />}
       {panelTool === "banner" && <BannersPanel />}
+      {panelTool === "text" && <TextPanel />}
       {panelTool === "chroma" && <ChromaPanel />}
     </>
   );
@@ -410,7 +414,28 @@ function Editor({ exportJob, clearExportParam }: { exportJob: string | null; cle
   );
 }
 
+/** Desktop seek bar: the obvious way to pick a moment with a mouse. */
+function SeekBar() {
+  const time = usePlayer((s) => Math.round(s.time * 20) / 20);
+  const duration = usePlayer((s) => s.duration);
+  return (
+    <input
+      type="range"
+      min={0}
+      max={duration || 0}
+      step={0.01}
+      value={Math.min(time, duration)}
+      aria-label={t("editor.seek")}
+      onPointerDown={() => usePlayer.getState().playing && playback.pause()}
+      onChange={(e) => playback.seek(Number(e.target.value))}
+      className="mx-3 h-1.5 min-w-0 flex-1 cursor-pointer"
+      style={{ accentColor: "var(--color-accent)" }}
+    />
+  );
+}
+
 function Transport() {
+  const desktop = useMedia(DESKTOP);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const playing = usePlayer((s) => s.playing);
@@ -427,7 +452,7 @@ function Transport() {
         <span className="whitespace-nowrap text-footnote tabular-nums">
           {formatTimecode(time, true)} <span className="text-label-3">/ {formatTimecode(duration, true)}</span>
         </span>
-        <span className="flex-1" />
+        {desktop ? <SeekBar /> : <span className="flex-1" />}
         <IconButton label={t("editor.undo")} disabled={!canUndo} onClick={() => useEditor.getState().undo()}>
           <Undo2 size={21} />
         </IconButton>

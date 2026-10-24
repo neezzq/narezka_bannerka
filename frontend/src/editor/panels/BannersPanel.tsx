@@ -20,7 +20,7 @@ import { formatTimecode } from "@/lib/timecode";
 import { outputDuration } from "@/lib/timeline";
 import type { Anim, Asset, Banner } from "@/lib/types";
 import { useApp } from "@/store/app";
-import { useAssets } from "@/store/assets";
+import { isTextAsset, useAssets } from "@/store/assets";
 import { useEditor } from "@/store/editor";
 import { addBanner, duplicateBanner, removeBanner } from "../actions";
 import { playback, usePlayer } from "../playback";
@@ -38,8 +38,9 @@ const PRESETS: { id: BannerPreset; icon: string }[] = [
 ];
 
 export function BannersPanel() {
-  const { assets, loaded, uploads, load, upload, remove } = useAssets();
-  const banners = useEditor((s) => s.doc!.banners);
+  const { assets: all, loaded, uploads, load, upload, remove } = useAssets();
+  const assets = all.filter((a) => !isTextAsset(a));
+  const banners = useEditor((s) => s.doc!.banners).filter((b) => !b.text);
   const selection = useEditor((s) => s.selection);
   const maxMb = useApp((s) => s.config.maxBannerMb);
   const file = useRef<HTMLInputElement>(null);
@@ -158,7 +159,8 @@ export function BannersPanel() {
   );
 }
 
-function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
+/** Placement, timing, animation and order of a banner (text banners use it too). */
+export function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
   const update = useEditor((s) => s.update);
   const begin = useEditor((s) => s.beginGesture);
   const end = useEditor((s) => s.endGesture);
@@ -259,7 +261,7 @@ function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
       </FieldRow>
 
       <div className="grid grid-cols-2 gap-2 px-4 pt-2">
-        <Button
+        {!banner.text && <Button
           variant="tinted"
           size="sm"
           icon={<Pipette size={14} />}
@@ -271,7 +273,7 @@ function BannerInspector({ banner, asset }: { banner: Banner; asset?: Asset }) {
         >
           {t("banner.chroma")}
           {banner.chroma?.enabled ? " ✓" : ""}
-        </Button>
+        </Button>}
         <Button
           variant="gray"
           size="sm"

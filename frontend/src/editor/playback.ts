@@ -188,7 +188,7 @@ export const playback = new PlaybackEngine();
 if (typeof window !== "undefined") {
   window.addEventListener("keydown", (e) => {
     const el = e.target as HTMLElement;
-    if (el.closest("input, textarea, [contenteditable]")) return;
+    if (el.closest("input:not([type='range']), textarea, [contenteditable]")) return;
     if (e.code === "Space" && playback.video && !document.querySelector("[aria-modal='true']")) {
       e.preventDefault();
       // a focused button would also take the Space: in the editor it always plays

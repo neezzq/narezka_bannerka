@@ -93,6 +93,53 @@ export function Timeline({ large = false }: { large?: boolean }) {
 
   const raf = useRef(0);
   const userAt = useRef(0);
+  // mouse: drag the strip like a finger would, a click jumps to that moment
+  const pan = useRef<{ x0: number; s0: number; moved: boolean } | null>(null);
+  const panned = useRef(false);
+  /** A click/tap on the ruler or an empty spot moves the playhead there (clips and blocks keep their own taps). */
+  const seekAt = (ev: { target: EventTarget | null; clientX: number }) => {
+    const el = scroller.current!;
+    if ((ev.target as HTMLElement).closest("button, [role='button']")) return;
+    const x = el.scrollLeft + ev.clientX - el.getBoundingClientRect().left - el.clientWidth / 2;
+    playback.seek(x / ppsRef.current);
+  };
+  const tap = useRef<{ x: number; y: number } | null>(null);
+  const startMousePan = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const el = scroller.current!;
+    pan.current = { x0: e.clientX, s0: el.scrollLeft, moved: false };
+    panned.current = false;
+    const move = (ev: PointerEvent) => {
+      const p = pan.current;
+      if (!p) return;
+      const dx = ev.clientX - p.x0;
+      if (!p.moved && Math.abs(dx) < 4) return;
+      if (!p.moved) {
+        p.moved = true;
+        el.setPointerCapture(ev.pointerId);
+        el.style.cursor = "grabbing";
+      }
+      userAt.current = performance.now();
+      el.scrollLeft = p.s0 - dx;
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      const p = pan.current;
+      pan.current = null;
+      el.style.cursor = "";
+      if (!p) return;
+      if (p.moved) {
+        panned.current = true; // swallow the click that ends the drag
+        return;
+      }
+      seekAt(ev);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
   const onScroll = () => {
     const el = scroller.current!;
     cancelAnimationFrame(raf.current);
@@ -213,7 +260,7 @@ export function Timeline({ large = false }: { large?: boolean }) {
     useEditor.getState().endGesture();
   };
 
-  const select = (s: { kind: "cut" | "banner" | "line"; id: string }, tool: "trim" | "banner" | "subtitles") => {
+  const select = (s: { kind: "cut" | "banner" | "line"; id: string }, tool: "trim" | "banner" | "text" | "subtitles") => {
     const st = useEditor.getState();
     st.select(s);
     if (st.tool !== tool && !(tool === "banner" && st.tool === "chroma")) st.setTool(tool);
@@ -255,12 +302,26 @@ export function Timeline({ large = false }: { large?: boolean }) {
       <div
         ref={scroller}
         onScroll={onScroll}
-        onPointerDown={() => {
+        onPointerDown={(e) => {
           userAt.current = performance.now();
           if (usePlayer.getState().playing) playback.pause();
+          startMousePan(e);
+          tap.current = e.pointerType === "mouse" ? null : { x: e.clientX, y: e.clientY };
+        }}
+        onPointerUp={(e) => {
+          // touch: a tap (a scroll ends in pointercancel instead)
+          const t0 = tap.current;
+          tap.current = null;
+          if (t0 && Math.hypot(e.clientX - t0.x, e.clientY - t0.y) < 8) seekAt(e);
+        }}
+        onClickCapture={(e) => {
+          if (!panned.current) return;
+          panned.current = false;
+          e.stopPropagation();
+          e.preventDefault();
         }}
         onWheel={() => (userAt.current = performance.now())}
-        className="no-scrollbar relative overflow-x-auto overflow-y-hidden"
+        className="no-scrollbar relative cursor-grab overflow-x-auto overflow-y-hidden"
         style={{ touchAction: "pan-x" }}
         aria-label={t("a11y.timeline")}
       >
@@ -339,7 +400,7 @@ export function Timeline({ large = false }: { large?: boolean }) {
                   }`}
                   style={{ left: b.start * pps, width: Math.max(8, (b.end - b.start) * pps - 2), top: lane * (LANE_H + 3), height: LANE_H, touchAction: sel ? "none" : "pan-x" }}
                   onPointerDown={sel ? beginDrag({ kind: "banner-move", id: b.id, x0: 0, s0: b.start, e0: b.end }) : undefined}
-                  onClick={() => !sel && select({ kind: "banner", id: b.id }, "banner")}
+                  onClick={() => !sel && select({ kind: "banner", id: b.id }, b.text ? "text" : "banner")}
                   role="button"
                   aria-label={t("a11y.bannerRange", { from: formatTimecode(b.start), to: formatTimecode(b.end) })}
                 >
@@ -349,8 +410,14 @@ export function Timeline({ large = false }: { large?: boolean }) {
                     </span>
                   )}
                   <span className={`flex min-w-0 items-center gap-1 ${sel ? "px-5" : "px-1.5"}`}>
-                    {asset?.thumbUrl ? <img src={asset.thumbUrl} alt="" className="size-4 shrink-0 rounded-[3px] object-cover" /> : <ImageIcon size={12} />}
-                    <span className="truncate">{asset?.name ?? t("banner.untitled")}</span>
+                    {b.text ? (
+                      <Type size={12} className="shrink-0" />
+                    ) : asset?.thumbUrl ? (
+                      <img src={asset.thumbUrl} alt="" className="size-4 shrink-0 rounded-[3px] object-cover" />
+                    ) : (
+                      <ImageIcon size={12} />
+                    )}
+                    <span className="truncate">{b.text ? b.text.content.split("\n")[0] : (asset?.name ?? t("banner.untitled"))}</span>
                   </span>
                   {sel && (
                     <span className="absolute inset-y-0 right-0 z-10 flex w-4 cursor-ew-resize items-center justify-center bg-white/30" onPointerDown={beginDrag({ kind: "banner-end", id: b.id, x0: 0, s0: b.start, e0: b.end })}>

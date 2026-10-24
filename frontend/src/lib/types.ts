@@ -90,6 +90,28 @@ export interface Banner {
   animOut: Anim;
   animDuration: number;
   chroma: ChromaSettings | null;
+  /** set for text banners: the PNG is drawn from this spec in the browser */
+  text?: TextSpec | null;
+}
+
+export interface TextSpec {
+  content: string;
+  preset: string;
+  font: string;
+  weight: number;
+  color: string;
+  align: "left" | "center" | "right";
+  /** stroke width in font sizes */
+  outline: number;
+  outlineColor: string;
+  shadow: boolean;
+  box: boolean;
+  boxColor: string;
+  boxOpacity: number;
+  uppercase: boolean;
+  /** font px the PNG was drawn with and its height (keeps the size on re-render) */
+  renderFont: number;
+  renderHeight: number;
 }
 
 export interface ExportSettings {

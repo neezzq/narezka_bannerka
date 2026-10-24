@@ -13,6 +13,7 @@ import { outputDuration } from "@/lib/timeline";
 import type { ExportSettings, RenderResult } from "@/lib/types";
 import { useRenderJobs } from "@/store/backgroundJobs";
 import { flushSave, useEditor } from "@/store/editor";
+import { waitTextUploads } from "../text/textBanners";
 
 async function shareFile(r: RenderResult) {
   try {
@@ -63,6 +64,7 @@ export function ExportSheet({ open, onClose, initialJobId }: { open: boolean; on
   const start = async () => {
     setStarting(true);
     try {
+      await waitTextUploads(); // text images must be on the server before the render
       await flushSave();
       const { jobId: id } = await api.render(meta.id, useEditor.getState().doc!, settings);
       setJobId(id);

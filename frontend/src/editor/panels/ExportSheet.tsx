@@ -1,6 +1,7 @@
-import { CheckCircle2, Download, RotateCcw, Share2, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Heart, RotateCcw, Share2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Button, ListRow, ListSection, ProgressRing, SegmentedControl, Sheet, toast } from "@/components/ios";
+import { useSupport } from "@/components/SupportSheet";
 import { t } from "@/i18n";
 import { api } from "@/lib/api";
 import { frameSize } from "@/lib/geometry";
@@ -156,6 +157,13 @@ export function ExportSheet({ open, onClose, initialJobId }: { open: boolean; on
             <Button variant="plain" full className="mt-2" icon={<RotateCcw size={16} />} onClick={() => setJobId(null)}>
               {t("export.again")}
             </Button>
+            <button
+              type="button"
+              onClick={useSupport.getState().show}
+              className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[12px] bg-accent/10 px-4 py-3 text-subhead font-semibold text-accent-text transition-colors hover:bg-accent/15"
+            >
+              <Heart size={16} aria-hidden /> {t("support.afterExport")}
+            </button>
           </div>
         )}
 

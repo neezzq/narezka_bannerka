@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,19 +14,24 @@ from ..services.assets import process_gif, process_image
 from ..services.projects import asset_public
 from ..services.storage import get_storage, new_id
 from .deps import owned_asset, session_id
-from .uploads import save_upload
+from .uploads import save_stream, upload_source
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 
 @router.post("")
-async def upload_asset(file: UploadFile = File(...), sid: str = Depends(session_id),
-                       db: AsyncSession = Depends(get_db)) -> dict:
+async def upload_asset(request: Request, sid: str = Depends(session_id), db: AsyncSession = Depends(get_db)) -> dict:
     s = get_settings()
     storage = get_storage()
     out_dir = storage.new_dir("assets")
-    path, kind, _mime = await save_upload(file, out_dir, s.max_banner_mb * 1024 * 1024, {"image", "gif", "video"})
-    name = Path(file.filename or "banner").name[:200]
+    chunks, filename = await upload_source(request)
+    try:
+        path, kind, _mime = await save_stream(chunks, out_dir, s.max_banner_mb * 1024 * 1024,
+                                              {"image", "gif", "video"})
+    except BaseException:
+        storage.delete(storage.key(out_dir))
+        raise
+    name = Path(filename or "banner").name[:200]
     asset = Asset(id=new_id(), session_id=sid, kind=kind, name=name, mime=_mime, width=0, height=0)
     if kind == "video":
         asset.status = "processing"

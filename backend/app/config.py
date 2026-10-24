@@ -50,7 +50,8 @@ class Settings(BaseSettings):
     whisper_model: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
-    whisper_cpu_threads: int = 0
+    whisper_cpu_threads: int = 0  # 0 = all cores
+    whisper_beam_size: int = 1  # 1 = greedy (about twice as fast as 5, slightly less accurate)
 
     # HTTP
     cookie_secure: bool = False

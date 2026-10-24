@@ -29,7 +29,9 @@ def test_single_cut_basic_graph():
     assert "[0:v]trim=start=0:end=10,setpts=PTS-STARTPTS[vcat]" in fc
     assert "[0:a]atrim=start=0:end=10,asetpts=PTS-STARTPTS[acat]" in fc
     assert "concat" not in fc
-    assert "color=c=0x000000:s=1080x1920" in fc
+    # the cover video fills the frame: no background, the video itself is the base
+    assert "color=" not in fc and "overlay" not in fc
+    assert "out_color_matrix=bt709:out_range=tv,format=yuv420p[base0]" in fc
     assert plan.duration == pytest.approx(10)
     args = plan.args
     assert args[:2] == ["-i", "/data/original.mp4"]
@@ -64,8 +66,16 @@ def test_cover_crops_source_to_visible_area():
     assert p["cw"] == pytest.approx(607.5)
     assert p["cx"] == pytest.approx((1920 - 607.5) / 2)
     plan = build_render(d, SRC, {}, Path("/o.mp4"))
-    assert "crop=608:1080:656:0:exact=1,scale=1080:1920" in plan.filter_complex
-    assert "overlay=x=0:y=0" in plan.filter_complex
+    # crop, resize and RGB→BT.709 in one swscale pass
+    assert "crop=608:1080:656:0:exact=1,scale=1080:1920:flags=bicubic:out_color_matrix=bt709:out_range=tv" in (
+        plan.filter_complex)
+
+
+def test_letterbox_composites_on_background_in_yuv():
+    d = doc(videoTransform={"fit": "contain", "scale": 1, "x": 0, "y": 0}, background="#202020")
+    fc = build_render(d, SRC, {}, Path("/o.mp4")).filter_complex
+    assert "color=c=0x202020:s=1080x1920:r=30/1:d=11,format=rgb24,scale=out_color_matrix=bt709:out_range=tv," in fc
+    assert "[bg][vid]overlay=x=0:y=656:format=yuv420:shortest=1[base0]" in fc
 
 
 def test_contain_and_offset():
@@ -107,22 +117,31 @@ def test_banners_image_gif_video_inputs_and_order():
     }
     plan = build_render(doc(banners=banners), SRC, assets, Path("/o.mp4"))
     fc, args = plan.filter_complex, plan.args
-    assert ["-loop", "1", "-framerate", "30/1", "-i", "/a/img.png"] == plan.inputs[1]
+    # a still image is decoded once and repeated inside the graph
+    assert ["-i", "/a/img.png"] == plan.inputs[1]
     assert ["-ignore_loop", "0", "-i", "/a/x.gif"] == plan.inputs[2]
-    assert ["-stream_loop", "-1", "-i", "/a/v.mp4"] == plan.inputs[3]
+    # the keyed video banner is keyed once (for its 6 s on screen), then looped
+    assert ["-stream_loop", "-1", "-i", "/banner2_keyed.mkv"] == plan.inputs[3]
+    assert len(plan.prepare) == 1
+    pre = plan.prepare[0]
+    assert pre[:4] == ["-i", "/a/v.mp4", "-t", "6"] and pre[-1] == "/banner2_keyed.mkv"
+    assert "chromakey=color=0x00FF00:similarity=0.2:blend=0.1" in pre[pre.index("-vf") + 1]
+    assert "despill=type=green:mix=0.5:expand=0:red=0:blue=0:green=-0.4" in pre[pre.index("-vf") + 1]
+    assert "chromakey" not in fc
     assert args.count("-i") == 4
-    # time shift, size, fade
-    assert "[1:v]setpts=PTS-STARTPTS+1/TB" in fc
-    assert "scale=324:192:flags=bicubic" in fc  # 0.3*1080 x 0.1*1920
+    # still image: processed once, looped, then timed
+    assert "[1:v]scale=324:192:flags=bicubic:out_color_matrix=bt709:out_range=tv,format=yuva420p," in fc  # 0.3*1080 x 0.1*1920
+    assert "loop=loop=-1:size=1:start=0,setpts=N/(30/1)/TB+1/TB" in fc
     assert "fade=t=in:st=1:d=0.4:alpha=1" in fc and "fade=t=out:st=3.6:d=0.4:alpha=1" in fc
+    assert "[3:v]setpts=PTS-STARTPTS+2/TB" in fc
     # overlays are chained in z-order with time windows
     assert "[base0][bn0]overlay=" in fc and "[base1][bn1]overlay=" in fc and "[base2][bn2]overlay=" in fc
     assert "enable='between(t,1,4)'" in fc
-    assert "[base3]scale=out_color_matrix=bt709" in fc
-    # video banner: chroma + despill + opacity + rotation
-    assert "chromakey=color=0x00FF00:similarity=0.2:blend=0.1" in fc
-    assert "despill=type=green:mix=0.5:expand=0:red=0:blue=0:green=-0.4" in fc
-    assert "colorchannelmixer=aa=0.5" in fc
+    assert "[base3]format=yuv420p[vout]" in fc
+    # composited in YUV with alpha, no RGB frame-sized steps
+    assert ":format=yuv420:shortest=1:enable=" in fc and "format=rgb" not in fc.replace("format=rgb24", "")
+    # video banner: opacity + rotation in yuva
+    assert "lut=a=val*0.5" in fc
     assert "rotate=a=0.261799" in fc
 
 
@@ -149,7 +168,7 @@ def test_slide_and_scale_animation_expressions():
 
 def test_subtitles_are_burned_last():
     plan = build_render(doc(), SRC, {}, Path("/o.mp4"), ass_path=Path("/r/subs.ass"), fonts_dir=Path("/fonts"))
-    assert "[base0]ass=filename=/r/subs.ass:fontsdir=/fonts,scale=out_color_matrix=bt709" in plan.filter_complex
+    assert "[base0]ass=filename=/r/subs.ass:fontsdir=/fonts,format=yuv420p[vout]" in plan.filter_complex
 
 
 def test_chroma_filters_blue_screen():

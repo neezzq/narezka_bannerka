@@ -118,6 +118,7 @@ API-документация: http://localhost:8000/api/docs.
 | `DEFAULT_QUALITY` / `MAX_QUALITY` | `1080` / `2160` | качество фрагмента по умолчанию / лучшее, которое можно выбрать |
 | `PROXY_SHORT_SIDE` | `540` | прокси для превью в редакторе |
 | `WHISPER_MODEL`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE` | `small`, `cpu`, `int8` | распознавание речи |
+| `WHISPER_BEAM_SIZE` | `1` | 1 — быстрее всего, 5 — чуть точнее и примерно вдвое медленнее |
 | `RENDER_PRESET`, `WORKER_MAX_JOBS` | `veryfast`, `2` | скорость рендера и параллелизм воркера |
 | `COOKIE_SECURE`, `X_ACCEL_REDIRECT` | `false`, `false` (в compose `true`) | HTTPS-cookie, отдача файлов nginx'ом |
 

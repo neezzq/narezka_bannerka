@@ -1,9 +1,12 @@
 """Build the ffmpeg command for the final render from the project document.
 
-Pipeline (all compositing in RGB so colours match the browser preview):
+Pipeline (compositing in yuv420p BT.709 — 2.7× less data per frame than RGBA;
+every RGB→YUV step names the matrix and range, so colours match the preview):
 
-    source ─trim/concat (cuts)─ fps ─ [chroma] ─ crop+scale (videoTransform) ┐
-    colour background W×H ───────────────────────────────────────────── overlay ─ banners… ─ ass ─ yuv420p(bt709)
+    source ─trim/concat (cuts)─ fps ─ [chroma] ─ crop+scale→yuv (videoTransform) ┐
+    colour background W×H (skipped when the video covers the frame) ──────── overlay ─ banners… ─ ass
+
+``ass`` blends in the frame's colour space on ffmpeg ≥ 7 (6.x assumes BT.601).
 
 Geometry mirrors ``frontend/src/editor/geometry.ts``:
 * frame W×H from aspect + quality (short side 720/1080);
@@ -52,6 +55,8 @@ class RenderPlan:
     fps: str
     filter_complex: str = ""
     inputs: list[list[str]] = field(default_factory=list)
+    # ffmpeg runs that must finish before ``args`` (pre-keyed banners)
+    prepare: list[list[str]] = field(default_factory=list)
 
 
 def _n(v: float, digits: int = 4) -> str:
@@ -85,6 +90,10 @@ def chroma_filters(c: ChromaSettings) -> list[str]:
         scales = "green=0:blue=" if kind == "blue" else "blue=0:green="
         out.append(f"despill=type={kind}:mix=0.5:expand=0:red=0:{scales}{_n(-c.spill)}:brightness=0:alpha=0")
     return out
+
+
+# explicit target colour space for every conversion into the output frame
+TO_OUT = "out_color_matrix=bt709:out_range=tv"
 
 
 def output_fps(doc: ProjectDoc, src: SourceInfo) -> str:
@@ -149,13 +158,18 @@ def banner_motion(b: Banner, W: int, H: int) -> tuple[str, str]:
     return x, y
 
 
-def banner_chain(b: Banner, asset: AssetInfo, W: int, H: int) -> list[str]:
-    chain = [f"setpts=PTS-STARTPTS+{_n(b.start)}/TB"]
-    if b.chroma and b.chroma.enabled:
-        chain += chroma_filters(b.chroma)
-    chain.append("format=rgba")
-    bw, bh = max(2, round(b.w * W)), max(2, round(b.h * H))
+def banner_chain(b: Banner, asset: AssetInfo, W: int, H: int, fps: str = "30", prekeyed: bool = False) -> list[str]:
+    """Banner filters, ending in yuva420p for the YUV overlay.
+
+    Resize and RGB→YUV happen in one swscale pass at banner size. A still image
+    is processed once and repeated (no per-frame decode); ``prekeyed`` inputs
+    were already chroma-keyed by a ``RenderPlan.prepare`` pass."""
     scale_anim = b.animIn == "scale" or b.animOut == "scale"
+    still = asset.kind == "image" and not scale_anim
+    chain = [] if still else [f"setpts=PTS-STARTPTS+{_n(b.start)}/TB"]
+    if b.chroma and b.chroma.enabled and not prekeyed:
+        chain += chroma_filters(b.chroma)
+    bw, bh = max(2, round(b.w * W)), max(2, round(b.h * H))
     if scale_anim:
         d, s, e = _n(b.animDuration), _n(b.start), _n(b.end)
         k = []
@@ -164,20 +178,32 @@ def banner_chain(b: Banner, asset: AssetInfo, W: int, H: int) -> list[str]:
         if b.animOut == "scale":
             k.append(_ease(f"clip(({e}-t)/{d},0,1)"))
         f = "*".join(k)
-        chain.append(f"scale=w='max(2,{bw}*{f})':h='max(2,{bh}*{f})':eval=frame:flags=bicubic")
+        chain.append(f"scale=w='max(2,{bw}*{f})':h='max(2,{bh}*{f})':eval=frame:flags=bicubic:{TO_OUT}")
     else:
-        chain.append(f"scale={bw}:{bh}:flags=bicubic")
+        chain.append(f"scale={bw}:{bh}:flags=bicubic:{TO_OUT}")
+    chain.append("format=yuva420p")
     if b.opacity < 0.999:
-        chain.append(f"colorchannelmixer=aa={_n(b.opacity)}")
+        chain.append(f"lut=a=val*{_n(b.opacity)}")
     if abs(b.rotation) > 0.01:
         rad = _n(math.radians(b.rotation), 6)
         chain.append(f"rotate=a={rad}:ow=rotw({rad}):oh=roth({rad}):c=none:bilinear=1")
+    if still:
+        chain += ["loop=loop=-1:size=1:start=0", f"setpts=N/({fps})/TB+{_n(b.start)}/TB"]
     d = b.animDuration
     if b.animIn in ("fade", "scale"):
         chain.append(f"fade=t=in:st={_n(b.start)}:d={_n(d)}:alpha=1")
     if b.animOut in ("fade", "scale"):
         chain.append(f"fade=t=out:st={_n(max(b.start, b.end - d))}:d={_n(d)}:alpha=1")
     return chain
+
+
+def key_prepass(b: Banner, asset: AssetInfo, out: Path, length: float) -> list[str]:
+    """Chroma-key a looping video banner once, for as long as it is shown.
+
+    chromakey is per-pixel heavy; a banner clip loops many times during the
+    render, so keying its frames once and looping the result saves most of it."""
+    return ["-i", str(asset.path), "-t", _n(max(0.1, length)), "-an",
+            "-vf", ",".join(chroma_filters(b.chroma)), "-c:v", "ffv1", "-pix_fmt", "gbrap", str(out)]
 
 
 def build_render(
@@ -224,42 +250,59 @@ def build_render(
 
     # 2. background + placed video
     bg = doc.background.lstrip("#")
-    fc.append(f"color=c=0x{bg}:s={W}x{H}:r={fps}:d={_n(total + 1)},format=rgba[bg]")
+    background = f"color=c=0x{bg}:s={W}x{H}:r={fps}:d={_n(total + 1)},format=rgb24,scale={TO_OUT},format=yuv420p"
     place = video_placement(doc, src, W, H)
+    keyed = bool(doc.videoChroma and doc.videoChroma.enabled)
     vchain = [f"fps={fps}"]
-    if doc.videoChroma and doc.videoChroma.enabled:
+    if keyed:
         vchain += chroma_filters(doc.videoChroma)
     if place["visible"]:
         cw, ch = max(1, round(place["cw"])), max(1, round(place["ch"]))
         cx, cy = round(place["cx"]), round(place["cy"])
         cw, ch = min(cw, src.width - cx), min(ch, src.height - cy)
         ow, oh = max(1, round(place["vx1"] - place["vx0"])), max(1, round(place["vy1"] - place["vy0"]))
-        vchain += ["format=rgba", f"crop={cw}:{ch}:{cx}:{cy}:exact=1", f"scale={ow}:{oh}:flags=bicubic"]
-        fc.append(f"[vcat]{','.join(vchain)}[vid]")
-        fc.append(f"[bg][vid]overlay=x={round(place['vx0'])}:y={round(place['vy0'])}:format=rgb:shortest=1[base0]")
+        # crop, resize and colour conversion in one swscale pass
+        vchain += [f"crop={cw}:{ch}:{cx}:{cy}:exact=1", f"scale={ow}:{oh}:flags=bicubic:{TO_OUT}",
+                   "format=yuva420p" if keyed else "format=yuv420p"]
+        covers = not keyed and ow >= W and oh >= H and place["vx0"] < 0.5 and place["vy0"] < 0.5
+        if covers:
+            # the video fills the frame: no background to composite onto
+            fc.append(f"[vcat]{','.join(vchain)}[base0]")
+        else:
+            fc.append(f"[vcat]{','.join(vchain)}[vid]")
+            fc.append(f"{background}[bg]")
+            fc.append(f"[bg][vid]overlay=x={round(place['vx0'])}:y={round(place['vy0'])}:format=yuv420:shortest=1[base0]")
     else:
         fc.append("[vcat]nullsink")
-        fc.append(f"[bg]trim=duration={_n(total)}[base0]")
+        fc.append(f"{background},trim=duration={_n(total)}[base0]")
 
     # 3. banners (array order = z order)
     base = "base0"
+    prepare: list[list[str]] = []
     for j, b in enumerate(doc.banners):
         asset = assets.get(b.assetId)
         if asset is None or b.start >= total:
             continue
         idx = len(inputs)
+        prekeyed = asset.kind == "video" and bool(b.chroma and b.chroma.enabled)
+        scale_anim = b.animIn == "scale" or b.animOut == "scale"
         if asset.kind == "image":
-            inputs.append(["-loop", "1", "-framerate", fps, "-i", str(asset.path)])
+            inputs.append(["-loop", "1", "-framerate", fps, "-i", str(asset.path)] if scale_anim
+                          else ["-i", str(asset.path)])
         elif asset.kind == "gif":
             inputs.append(["-ignore_loop", "0", "-i", str(asset.path)])
+        elif prekeyed:
+            keyed = output.parent / f"banner{j}_keyed.mkv"
+            prepare.append(key_prepass(b, asset, keyed, min(b.end, total) - b.start))
+            inputs.append(["-stream_loop", "-1", "-i", str(keyed)])
         else:
             inputs.append(["-stream_loop", "-1", "-i", str(asset.path)])
-        fc.append(f"[{idx}:v]{','.join(banner_chain(b, asset, W, H))}[bn{j}]")
+        fc.append(f"[{idx}:v]{','.join(banner_chain(b, asset, W, H, fps, prekeyed))}[bn{j}]")
         x, y = banner_motion(b, W, H)
         end = min(b.end, total)
         nxt = f"base{j + 1}"
         fc.append(
-            f"[{base}][bn{j}]overlay=x='{x}':y='{y}':eval=frame:format=rgb:shortest=1:"
+            f"[{base}][bn{j}]overlay=x='{x}':y='{y}':eval=frame:format=yuv420:shortest=1:"
             f"enable='between(t,{_n(b.start)},{_n(end)})'[{nxt}]"
         )
         base = nxt
@@ -268,7 +311,7 @@ def build_render(
     post = []
     if ass_path is not None:
         post.append(f"ass=filename={_escape_path(ass_path)}" + (f":fontsdir={_escape_path(fonts_dir)}" if fonts_dir else ""))
-    post.append("scale=out_color_matrix=bt709:out_range=tv,format=yuv420p")
+    post.append("format=yuv420p")
     fc.append(f"[{base}]{','.join(post)}[vout]")
 
     filter_complex = ";\n".join(fc)
@@ -290,7 +333,7 @@ def build_render(
         args += ["-threads", str(threads)]
     args.append(str(output))
     return RenderPlan(args=args, duration=total, width=W, height=H, fps=fps, filter_complex=filter_complex,
-                      inputs=inputs)
+                      inputs=inputs, prepare=prepare)
 
 
 def _escape_path(p: Path) -> str:

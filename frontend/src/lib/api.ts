@@ -79,7 +79,7 @@ export const api = {
   cancelJob: (id: string) => request<Job>("POST", `/api/jobs/${id}/cancel`),
 };
 
-/** multipart upload with progress (fetch has no upload progress events) */
+/** file upload with progress (fetch has no upload progress events) */
 export function uploadFile<T>(url: string, file: File, onProgress?: (fraction: number) => void): {
   promise: Promise<T>;
   abort: () => void;
@@ -103,9 +103,11 @@ export function uploadFile<T>(url: string, file: File, onProgress?: (fraction: n
       if (xhr.status >= 200 && xhr.status < 300) resolve(data as T);
       else reject(new ApiError(data?.error?.message || t("common.error"), data?.error?.code || "http", xhr.status));
     };
-    const form = new FormData();
-    form.append("file", file, file.name);
-    xhr.send(form);
+    // the raw file as the body streams straight into storage on the server
+    // (multipart would be spooled to a temp file and written twice)
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    xhr.send(file);
   });
   return { promise, abort: () => xhr.abort() };
 }

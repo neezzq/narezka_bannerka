@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import threading
+import wave
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -55,7 +57,7 @@ def _get_model() -> Any:
                     path,
                     device=s.whisper_device,
                     compute_type=s.whisper_compute_type,
-                    cpu_threads=s.whisper_cpu_threads,
+                    cpu_threads=s.whisper_cpu_threads or os.cpu_count() or 4,
                 )
             except Exception as exc:
                 log.exception("whisper model %s failed to load", name)
@@ -66,14 +68,30 @@ def _get_model() -> Any:
         return _model
 
 
+def read_wav(path: Path) -> Any:
+    """16-bit PCM WAV → float32 samples in [-1, 1].
+
+    faster-whisper's own decoder goes through PyAV, whose ``av.open`` API keeps
+    changing (PyAV 19 dropped ``metadata_errors``); ffmpeg already wrote 16 kHz
+    mono PCM, so reading it here avoids PyAV entirely."""
+    import numpy as np
+
+    with wave.open(str(path), "rb") as w:
+        if w.getsampwidth() != 2 or w.getnchannels() != 1:
+            raise ValueError("expected 16-bit mono PCM")
+        frames = w.readframes(w.getnframes())
+    return np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+
+
 def _transcribe_sync(audio: Path, language: str | None, duration: float, report: Callable[[float], None]) -> dict:
     model = _get_model()
+    s = get_settings()
     segments, info = model.transcribe(
-        str(audio),
+        read_wav(audio),
         language=language,
         word_timestamps=True,
         vad_filter=True,
-        beam_size=5,
+        beam_size=s.whisper_beam_size,
         condition_on_previous_text=False,
     )
     words: list[dict] = []

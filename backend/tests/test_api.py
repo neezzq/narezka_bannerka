@@ -104,6 +104,24 @@ def test_asset_upload_rejects_fake_types(client):
     assert r.status_code == 415 and r.json()["error"]["code"] == "bad_type"
 
 
+def test_raw_body_upload_streams_into_storage(client, env, monkeypatch):
+    # the app sends files as the raw request body: no multipart spooling
+    name = "%D0%91%D0%B0%D0%BD%D0%BD%D0%B5%D1%80.png"  # "Баннер.png", URL-encoded
+    r = client.post("/api/assets", content=png_bytes(), headers={"Content-Type": "image/png", "X-Filename": name})
+    assert r.status_code == 200, r.text
+    assert r.json()["asset"]["name"] == "Баннер.png" and r.json()["asset"]["width"] == 300
+    bad = client.post("/api/assets", content=b"#!/bin/sh\necho pwned\n" * 10, headers={"X-Filename": "x.png"})
+    assert bad.status_code == 415
+    from app import config
+
+    monkeypatch.setenv("MAX_BANNER_MB", "0")
+    config.get_settings.cache_clear()
+    big = client.post("/api/assets", content=png_bytes(), headers={"X-Filename": "b.png"})
+    assert big.status_code == 413 and big.json()["error"]["code"] == "too_large"
+    leftovers = [p for p in (env["tmp"] / "storage" / "assets").rglob("upload.*")] if (env["tmp"] / "storage").exists() else []
+    assert len(leftovers) <= 1  # only the accepted banner's file remains
+
+
 def test_unknown_file_id(client):
     assert client.get("/api/files/doesnotexist123").status_code == 404
     assert client.get("/api/media/../../etc/passwd").status_code == 404

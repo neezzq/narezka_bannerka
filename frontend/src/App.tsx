@@ -3,6 +3,7 @@ import { WifiOff } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ActivityIndicator, Button, DialogHost, EmptyState, toast, ToastHost } from "@/components/ios";
+import { SupportSheet } from "@/components/SupportSheet";
 import { t } from "@/i18n";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { useApp } from "@/store/app";
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        <SupportSheet />
         <ToastHost />
         <DialogHost />
         <OfflineBanner />

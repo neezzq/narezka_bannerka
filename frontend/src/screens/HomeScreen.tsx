@@ -1,9 +1,10 @@
 import { animate, motion, useMotionValue } from "framer-motion";
-import { ClipboardPaste, Clapperboard, Download, Link2, Settings, Trash2, Upload, WifiOff, X } from "lucide-react";
+import { ClipboardPaste, Clapperboard, Download, Heart, Link2, Settings, Trash2, Upload, WifiOff, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PlatformIcon } from "@/components/PlatformIcon";
+import { SupportButton, useSupport } from "@/components/SupportSheet";
 import {
   ActivityIndicator,
   Button,
@@ -177,9 +178,12 @@ export function HomeScreen() {
         title={t("home.title")}
         subtitle={t("app.tagline")}
         right={
-          <IconButton label={t("home.settings")} onClick={() => setSettings(true)}>
-            <Settings size={22} />
-          </IconButton>
+          <>
+            <SupportButton className="mr-1" />
+            <IconButton label={t("home.settings")} onClick={() => setSettings(true)}>
+              <Settings size={22} />
+            </IconButton>
+          </>
         }
       />
       <main className="scroll-y min-h-0 flex-1 pb-[calc(var(--safe-bottom)+24px)]">
@@ -303,6 +307,21 @@ export function HomeScreen() {
                   ))}
                 </div>
               </div>
+            </section>
+            <section className="px-4 pt-3">
+              <button
+                type="button"
+                onClick={useSupport.getState().show}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-card)] bg-accent/10 p-4 text-left transition-colors hover:bg-accent/15"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent-text">
+                  <Heart size={20} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-headline font-semibold">{t("support.cardTitle")}</span>
+                  <span className="block text-footnote text-label-2">{t("support.cardText")}</span>
+                </span>
+              </button>
             </section>
             {wide && <p className="mx-8 mt-6 text-center text-caption-1 text-label-3">{t("home.rights")}</p>}
           </div>
@@ -485,6 +504,16 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
               ]}
             />
           </div>
+        </ListSection>
+        <ListSection>
+          <ListRow
+            icon={<Heart size={20} className="text-accent-text" />}
+            title={t("support.button")}
+            onClick={() => {
+              onClose();
+              useSupport.getState().show();
+            }}
+          />
         </ListSection>
         {!isStandalone() && (
           <ListSection footer={t("install.text")}>

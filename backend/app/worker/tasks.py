@@ -353,8 +353,15 @@ async def task_render(job: Job, rep: JobReporter) -> dict:
     plan = build_render(doc, src, asset_rows, output, ass_path, s.fonts_dir, s.render_preset, s.render_threads)
     (out_dir / "filter.txt").write_text(plan.filter_complex)
     await rep.stage("render", 0.02)
-    rep.span(0.02, 0.99)
+    t0 = time.monotonic()
+    # pre-keyed banners are independent of each other: run them side by side
+    await asyncio.gather(*(run_ffmpeg(cmd) for cmd in plan.prepare))
+    rep.span(0.05 if plan.prepare else 0.02, 0.99)
     await run_ffmpeg(plan.args, duration=plan.duration, on_progress=rep.progress)
+    for cmd in plan.prepare:
+        Path(cmd[-1]).unlink(missing_ok=True)
+    log.info("job %s: rendered %.0fs %dx%d in %.1fs", job.id, plan.duration, plan.width, plan.height,
+             time.monotonic() - t0)
     safe_title = "".join(ch for ch in title if ch.isalnum() or ch in " -_")[:60].strip() or "bannerka"
     name = f"{safe_title} {datetime.now().strftime('%Y-%m-%d %H-%M')}.mp4"
     f = await _register(output, "render", "video/mp4", job.session_id, name=name)

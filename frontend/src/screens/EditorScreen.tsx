@@ -14,6 +14,7 @@ import {
   toast,
   type TabItem,
 } from "@/components/ios";
+import { SupportButton } from "@/components/SupportSheet";
 import { t } from "@/i18n";
 import { api, ApiError } from "@/lib/api";
 import { useJob } from "@/lib/jobs";
@@ -138,6 +139,7 @@ function DesktopHelp() {
           </div>
         ))}
       </dl>
+      <SupportButton size="md" className="mt-6 w-full" />
     </div>
   );
 }
